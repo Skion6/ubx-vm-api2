@@ -1,35 +1,75 @@
-# GamingOnCodespaces (Beta)
+# VM Management API (GamingOnCodespaces)
 
-<img src="https://i.imgur.com/bPFofl2.png" style="width:300px;"/><img src="https://i.imgur.com/kxqd2VT.png" style="width:300px;"/>
+A lightweight Python FastAPI application that provisions and manages isolated Linux (Ubuntu) VMs equipped with KasmVNC. This repository provides a scalable backend for allowing developers or websites to dynamically spin up fully-functional desktop environments via their browser.
 
-<img src="https://i.imgur.com/QE7V9bp.png" style="width:375px;"/>
+## Features
+* **Dynamic VM Provisioning**: Spin up Ubuntu desktops on-demand via a simple API call.
+* **Hardware Constraints**: Each container is tightly limited to 4 CPU cores and 8GB of RAM.
+* **Developer Limits**: Easily restrict how many VMs a specific developer or site can host concurrently.
+* **Time Limits**: Automatically shut down and clean up containers after a set amount of minutes.
+* **Dynamic Routing**: Internal KasmVNC (port 3000) is dynamically mapped to free host ports.
 
-a better version of https://codeberg.org/Mollomm1/W10-On-Github-Codespaces
+## Requirements
+To host this API, your server must have:
+* Python 3.10+
+* Docker Engine (or Docker Desktop) installed and running.
 
-> ⚠️ This project is currently a work in progress and is still unfinished. While I'm actively working on it and making progress, there may still be bugs and incomplete features. ⚠️
+---
 
-> it also works on [gitpod](https://gitpod.io/workspaces)
+## 🚀 Easy Setup
 
-# Supported Stuff
-
-* 1080p 60fps
-
-* Sound
-
-* Windows apps (wine)
-
-* Browsering (Brave and Firefox included!)
-
-* Home Persistance (You keep your files!)
-
-# Use
-
-it's very simple to install, there is a pseudo-graphical installer.
-
-first fork this repo and start a new codespace https://github.com/codespaces/new
-to install just copy and paste this command in your codespace terminal
+### Linux / Mac
+Run the built-in setup script from your terminal:
+```bash
+chmod +x setup.sh
+./setup.sh
 ```
-curl -O https://github.com/eastondean196-creator/GamingOnCodespaces/raw/branch/main/install.sh
-chmod +x install.sh
-./install.sh
+
+### Windows
+Double click the `setup.bat` file, or run it in your terminal:
+```cmd
+setup.bat
 ```
+
+The script will automatically build the `gamingoncodespaces` Docker template, install Python dependencies, and launch the API server on **Port 8000**.
+
+---
+
+## 🔌 API Endpoints
+
+Once the server is running on `http://localhost:8000`, the following endpoints are available:
+
+### 1. Create a VM
+**`GET /api/create`**
+
+Parameters:
+* `developer_id` (string): **Required.** Unique identifier for the site or developer requesting the VM.
+* `site_limit` (integer): *Optional* (default: 5). The maximum number of concurrent VMs allowed for this `developer_id`.
+* `delete_after` (integer): *Optional*. Automatically stop and destroy the container after this many minutes.
+
+*Example Response:*
+```json
+{
+  "status": "success",
+  "container_id": "eb36b9c92cc",
+  "name": "vm-test_dev-a1b2c3d4",
+  "port": 49156,
+  "developer_id": "test_dev",
+  "auto_delete_minutes": 60,
+  "message": "VM created successfully.",
+  "url": "http://your_server_ip:49156"
+}
+```
+**Accessing the VM:** Navigate to the returned `url` in your browser.
+
+### 2. List VMs
+**`GET /api/list`**
+
+Parameters:
+* `developer_id` (string): *Optional*. Filter the returned VMs by developer.
+
+### 3. Delete a VM
+**`GET /api/delete/{container_id}`**
+
+Path parameter:
+* `container_id` (string): **Required.** The ID of the container you wish to destroy.
