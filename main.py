@@ -2,10 +2,25 @@ import socket
 import uuid
 import docker
 import asyncio
-from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Depends
+from fastapi.security import APIKeyQuery, APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="VM Management API", description="API to provision and manage KasmVNC Ubuntu VMs")
+
+# Hardcoded password for administrative actions
+ADMIN_PASSWORD = "secret_password"
+
+api_key_query = APIKeyQuery(name="password", auto_error=False)
+api_key_header = APIKeyHeader(name="X-Admin-Password", auto_error=False)
+
+def verify_password(
+    password_query: str = Depends(api_key_query),
+    password_header: str = Depends(api_key_header)
+):
+    if password_query == ADMIN_PASSWORD or password_header == ADMIN_PASSWORD:
+        return True
+    raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing password")
 
 # Add CORS middleware to allow requests from websites
 app.add_middleware(
@@ -112,7 +127,7 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
     }
 
 @app.get("/api/delete/{container_id}")
-def delete_vm(container_id: str):
+def delete_vm(container_id: str, authorized: bool = Depends(verify_password)):
     """
     Stops and removes a VM using its container ID.
     """
@@ -130,7 +145,7 @@ def delete_vm(container_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/list")
-def list_vms(developer_id: str = None):
+def list_vms(developer_id: str = None, authorized: bool = Depends(verify_password)):
     """
     Lists all VMs, optionally filtered by developer_id.
     """
