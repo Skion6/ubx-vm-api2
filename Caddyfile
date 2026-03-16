@@ -4,33 +4,18 @@
 
 # --- MAIN SECURE SERVER ---
 ec2-18-219-58-159.us-east-2.compute.amazonaws.com {
-    # Encode all responses
     encode gzip
 
-    # 1. API Traffic
+    # API Traffic — everything under /api/* goes to the FastAPI backend
     handle /api/* {
         reverse_proxy localhost:8000
     }
 
-    # 2. Dynamic VM Traffic
-    # Matches URLs like /vm/42019/ or /vm/42019/dashboard
-    @dynamic_vm {
-        path_regexp vmport ^/vm/([0-9]+)(/.*)?$
-    }
-    handle @dynamic_vm {
-        # Strip /vm/{port} prefix, keep the rest of the path
-        uri strip_prefix /vm/{re.vmport.1}
-
-        reverse_proxy localhost:{re.vmport.1} {
-            flush_interval -1
-            header_up Host {host}
-            transport http {
-                keepalive off
-            }
-        }
+    # Default handler for anything else
+    handle {
+        respond "Not found" 404
     }
 
-    # Optional: Log requests
     log {
         output file /var/log/caddy/access.log
     }
