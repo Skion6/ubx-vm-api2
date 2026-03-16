@@ -44,23 +44,93 @@ def get_free_port() -> int:
     s.close()
     return port
 
-async def schedule_container_deletion(container_id: str, minutes: int):
-    """Background task to wait 'minutes' and then forcefully delete the container."""
-    await asyncio.sleep(minutes * 60)
+MAX_SESSION_MINUTES = 60  # Hard cap: all sessions deleted after 60 minutes
+
+async def _delete_container(container_id: str, reason: str):
+    """Helper to stop and remove a container."""
     try:
-        # Re-fetch the container to make sure it exists
         container = client.containers.get(container_id)
         container.stop(timeout=5)
         container.remove(force=True)
-        print(f"Auto-deleted container {container_id} after {minutes} minutes.")
+        print(f"Auto-deleted container {container_id}: {reason}")
     except Exception as e:
         print(f"Failed to auto-delete container {container_id}: {e}")
+
+async def schedule_container_deletion(container_id: str, inactivity_seconds: int):
+    """
+    Background task that deletes a container after 'inactivity_seconds' of idle CPU,
+    or after MAX_SESSION_MINUTES total lifetime — whichever comes first.
+
+    Inactivity is measured by polling Docker CPU stats every 15 seconds.
+    A container is considered "idle" when its CPU usage is below 1%.
+    """
+    import time
+
+    start_time = time.time()
+    max_lifetime = MAX_SESSION_MINUTES * 60
+    idle_since = time.time()          # Track when the container last became idle
+    poll_interval = 15                # Seconds between activity checks
+
+    while True:
+        await asyncio.sleep(poll_interval)
+
+        elapsed = time.time() - start_time
+
+        # --- Hard 60-minute cap ---
+        if elapsed >= max_lifetime:
+            await _delete_container(container_id, f"max session lifetime of {MAX_SESSION_MINUTES}m reached")
+            return
+
+        # --- Check CPU activity via Docker stats ---
+        try:
+            container = client.containers.get(container_id)
+            stats = container.stats(stream=False)
+
+            cpu_delta = (
+                stats["cpu_stats"]["cpu_usage"]["total_usage"]
+                - stats["precpu_stats"]["cpu_usage"]["total_usage"]
+            )
+            system_delta = (
+                stats["cpu_stats"]["system_cpu_usage"]
+                - stats["precpu_stats"]["system_cpu_usage"]
+            )
+
+            if system_delta > 0 and cpu_delta > 0:
+                cpu_percent = (cpu_delta / system_delta) * 100.0
+            else:
+                cpu_percent = 0.0
+
+            if cpu_percent >= 1.0:
+                # Container is active — reset the idle timer
+                idle_since = time.time()
+            else:
+                # Container is idle — check if inactivity threshold exceeded
+                if time.time() - idle_since >= inactivity_seconds:
+                    await _delete_container(
+                        container_id,
+                        f"{inactivity_seconds}s of inactivity"
+                    )
+                    return
+
+        except docker.errors.NotFound:
+            # Container was already removed externally
+            print(f"Container {container_id} no longer exists, stopping monitor.")
+            return
+        except Exception as e:
+            print(f"Error checking stats for {container_id}: {e}")
+
+async def schedule_hard_cap_deletion(container_id: str):
+    """Enforces the hard 60-minute max session lifetime when no inactivity timeout is set."""
+    await asyncio.sleep(MAX_SESSION_MINUTES * 60)
+    await _delete_container(container_id, f"max session lifetime of {MAX_SESSION_MINUTES}m reached")
 
 @app.get("/api/create")
 def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id: str, site_limit: int = 5, delete_after: int = None):
     """
     Spins up a new VM container for a developer, ensuring they don't exceed their site_limit.
-    Optionally auto-deletes the VM after 'delete_after' minutes.
+
+    - delete_after: seconds of inactivity (idle CPU < 1%) before the VM is auto-deleted.
+    - All sessions are hard-capped at 60 minutes regardless of activity.
     """
     if not client:
         raise HTTPException(status_code=500, detail="Docker client not initialized. Is Docker running?")
@@ -83,8 +153,6 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
     allocated_cpus = min(4.0, total_cpus)
     
     try:
-        # By default, Docker containers are isolated from each other.
-        # They have their own filesystem space, separate networking stacks, and separate IPC namespaces.
         container = client.containers.run(
             "gamingoncodespaces",
             name=container_name,
@@ -100,20 +168,22 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
             shm_size="2gb",
             security_opt=["seccomp=unconfined"],
             labels={"developer_id": developer_id},
-            nano_cpus=int(allocated_cpus * 1e9), # Dynamically bound cores
-            mem_limit="8g"            # 8 gigs of RAM
+            nano_cpus=int(allocated_cpus * 1e9),
+            mem_limit="8g"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start container: {str(e)}")
 
-    # 4. Schedule auto-deletion if requested
+    # 4. Schedule deletion
     if delete_after is not None and delete_after > 0:
+        # Inactivity-based deletion (also enforces the 60m hard cap internally)
         background_tasks.add_task(schedule_container_deletion, container.id, delete_after)
+    else:
+        # No inactivity timeout — still enforce the 60-minute hard cap
+        background_tasks.add_task(schedule_hard_cap_deletion, container.id)
         
     # 5. Build dynamic return URL based on requested host
-    # request.client.host gets the IP of the requester, request.url.hostname gets the server's IP/domain
     server_hostname = request.url.hostname
-    protocol = request.url.scheme
     
     return {
         "status": "success",
@@ -121,8 +191,9 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
         "name": container.name,
         "port": host_port,
         "developer_id": developer_id,
-        "auto_delete_minutes": delete_after,
-        "message": f"VM created successfully.",
+        "inactivity_timeout_seconds": delete_after,
+        "max_session_minutes": MAX_SESSION_MINUTES,
+        "message": "VM created successfully.",
         "url": f"http://{server_hostname}:{host_port}"
     }
 
