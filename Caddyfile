@@ -1,0 +1,61 @@
+{
+    email eastondean195@gmail.com
+}
+
+# --- GLOBAL IP SECURITY (Drops direct IP access on HTTP/HTTPS) ---
+:80, :443 {
+    @staticIP {
+        header_regexp Host Host ^(172\.26\.6\.234|3\.12\.220\.215|localhost|3\.143\.45\.45)$
+    }
+    handle @staticIP {
+        abort
+    }
+}
+
+# --- HTTP to HTTPS Redirect ---
+:80 {
+    redir https://ec2-18-219-58-159.us-east-2.compute.amazonaws.com{uri} permanent
+}
+
+# --- MAIN SECURE SERVER ---
+ec2-18-219-58-159.us-east-2.compute.amazonaws.com {
+    # Encode all responses
+    encode gzip
+
+    # 1. API Traffic
+    # Anything hitting /api/* gets sent to your backend manager
+    handle /api/* {
+        reverse_proxy localhost:8000
+    }
+
+    # 2. Dynamic VM Traffic
+    # Matches URLs like /vm/42019/ or /vm/42019/dashboard
+    @dynamic_vm {
+        path_regexp vmport ^/vm/([0-9]+)(/.*)?$
+    }
+    handle @dynamic_vm {
+        # Proxy to the extracted port number dynamically!
+        # Re-route the path so the backend sees "/" instead of "/vm/42019/"
+        # If group 2 is empty/null, default to /
+        rewrite * {re.vmport.2}
+        if "{re.vmport.2}" == "" {
+            rewrite * /
+        }
+        
+        reverse_proxy localhost:{re.vmport.1} {
+            flush_interval -1
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            transport http {
+                keepalive off
+            }
+        }
+    }
+
+    # Optional: Log requests
+    log {
+        output file /var/log/caddy/access.log
+    }
+}

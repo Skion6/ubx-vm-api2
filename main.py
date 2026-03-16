@@ -123,7 +123,7 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
         "developer_id": developer_id,
         "auto_delete_minutes": delete_after,
         "message": f"VM created successfully.",
-        "url": f"{protocol}://{server_hostname}:{host_port}"
+        "url": f"https://{server_hostname}/vm/{host_port}/"
     }
 
 @app.get("/api/delete/{container_id}")
