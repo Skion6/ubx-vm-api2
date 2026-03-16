@@ -61,6 +61,12 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
     # 3. Start the container
     container_name = f"vm-{developer_id}-{uuid.uuid4().hex[:8]}"
     
+    import multiprocessing
+    # Get available system CPUs
+    total_cpus = float(multiprocessing.cpu_count())
+    # Cap at a maximum of 4 cores, but scale down if the server is low-end
+    allocated_cpus = min(4.0, total_cpus)
+    
     try:
         # By default, Docker containers are isolated from each other.
         # They have their own filesystem space, separate networking stacks, and separate IPC namespaces.
@@ -73,13 +79,13 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
                 "PGID": "1000",
                 "TZ": "Etc/UTC",
                 "SUBFOLDER": "/",
-                "TITLE": "API"
+                "TITLE": "VM API Instance"
             },
             ports={'3000/tcp': host_port},
             shm_size="2gb",
             security_opt=["seccomp=unconfined"],
             labels={"developer_id": developer_id},
-            nano_cpus=int(4.0 * 1e9), # 4 cores
+            nano_cpus=int(allocated_cpus * 1e9), # Dynamically bound cores
             mem_limit="8g"            # 8 gigs of RAM
         )
     except Exception as e:
