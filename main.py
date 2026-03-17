@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="VM Management API", description="API to provision and manage KasmVNC Ubuntu VMs")
 
 # Hardcoded password for administrative actions
+#CHANGE IT!!!
 ADMIN_PASSWORD = "secret_password"
 
 api_key_query = APIKeyQuery(name="password", auto_error=False)
@@ -162,7 +163,7 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
                 "PGID": "1000",
                 "TZ": "Etc/UTC",
                 "SUBFOLDER": "/",
-                "TITLE": "VM API Instance"
+                "TITLE": ""
             },
             ports={'3000/tcp': host_port},
             shm_size="2gb",
@@ -171,6 +172,7 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
             nano_cpus=int(allocated_cpus * 1e9),
             mem_limit="8g"
         )
+        # change mem if u have shitty server
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start container: {str(e)}")
 
