@@ -163,7 +163,7 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
                 "PGID": "1000",
                 "TZ": "Etc/UTC",
                 "SUBFOLDER": "/",
-                "TITLE": ""
+                "TITLE": "Home - Classroom"
             },
             ports={'3000/tcp': host_port},
             shm_size="2gb",
