@@ -40,22 +40,37 @@ except Exception as e:
 
 def get_free_port() -> int:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('', 0))
-    port = s.getsockname()[1]
-    s.close()
+    try:
+        s.bind(('', 0))
+        port = s.getsockname()[1]
+    except Exception as e:
+        print(f"Error getting free port: {e}")
+        # fallback to a random high port if bind fails
+        import random
+        port = random.randint(10000, 60000)
+    finally:
+        s.close()
     return port
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 
 MAX_SESSION_MINUTES = 60  # Hard cap: all sessions deleted after 60 minutes
 
 async def _delete_container(container_id: str, reason: str):
-    """Helper to stop and remove a container."""
-    try:
-        container = client.containers.get(container_id)
-        container.stop(timeout=5)
-        container.remove(force=True)
-        print(f"Auto-deleted container {container_id}: {reason}")
-    except Exception as e:
-        print(f"Failed to auto-delete container {container_id}: {e}")
+    """Helper to stop and remove a container using a thread to avoid blocking."""
+    def _do_delete():
+        try:
+            container = client.containers.get(container_id)
+            container.stop(timeout=5)
+            container.remove(force=True, v=True)
+            return f"Auto-deleted container {container_id}: {reason}"
+        except Exception as e:
+            return f"Failed to auto-delete container {container_id}: {e}"
+            
+    result = await asyncio.to_thread(_do_delete)
+    print(result)
 
 async def schedule_container_deletion(container_id: str, inactivity_seconds: int):
     """
@@ -84,8 +99,11 @@ async def schedule_container_deletion(container_id: str, inactivity_seconds: int
 
         # --- Check CPU activity via Docker stats ---
         try:
-            container = client.containers.get(container_id)
-            stats = container.stats(stream=False)
+            def _get_stats():
+                container = client.containers.get(container_id)
+                return container.stats(stream=False)
+                
+            stats = await asyncio.to_thread(_get_stats)
 
             cpu_delta = (
                 stats["cpu_stats"]["cpu_usage"]["total_usage"]
@@ -126,7 +144,7 @@ async def schedule_hard_cap_deletion(container_id: str):
     await _delete_container(container_id, f"max session lifetime of {MAX_SESSION_MINUTES}m reached")
 
 @app.get("/api/create")
-def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id: str, site_limit: int = 5, delete_after: int = None):
+async def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id: str, site_limit: int = 5, delete_after: int = None):
     """
     Spins up a new VM container for a developer, ensuring they don't exceed their site_limit.
 
@@ -137,7 +155,15 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
         raise HTTPException(status_code=500, detail="Docker client not initialized. Is Docker running?")
 
     # 1. Check current running VMs for the developer using labels
-    containers = client.containers.list(filters={"label": f"developer_id={developer_id}"})
+    def _list_developer_containers():
+        return client.containers.list(filters={"label": f"developer_id={developer_id}"})
+        
+    try:
+        containers = await asyncio.to_thread(_list_developer_containers)
+    except Exception as e:
+        print(f"Error listing containers: {e}")
+        raise HTTPException(status_code=500, detail="Failed to communicate with Docker")
+
     if len(containers) >= site_limit:
         raise HTTPException(status_code=400, detail=f"Site limit of {site_limit} VMs reached for developer '{developer_id}'")
     
@@ -154,24 +180,27 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
     allocated_cpus = min(4.0, total_cpus)
     
     try:
-        container = client.containers.run(
-            "gamingoncodespaces",
-            name=container_name,
-            detach=True,
-            environment={
-                "PUID": "1000",
-                "PGID": "1000",
-                "TZ": "Etc/UTC",
-                "SUBFOLDER": "/",
-                "TITLE": "Home - Classroom"
-            },
-            ports={'3000/tcp': host_port},
-            shm_size="2gb",
-            security_opt=["seccomp=unconfined"],
-            labels={"developer_id": developer_id},
-            nano_cpus=int(allocated_cpus * 1e9),
-            mem_limit="8g"
-        )
+        def _run_container():
+            return client.containers.run(
+                "gamingoncodespaces",
+                name=container_name,
+                detach=True,
+                environment={
+                    "PUID": "1000",
+                    "PGID": "1000",
+                    "TZ": "Etc/UTC",
+                    "SUBFOLDER": "/",
+                    "TITLE": "Home - Classroom"
+                },
+                ports={'3000/tcp': host_port},
+                shm_size="2gb",
+                security_opt=["seccomp=unconfined"],
+                labels={"developer_id": developer_id},
+                nano_cpus=int(allocated_cpus * 1e9),
+                mem_limit="8g"
+            )
+        container = await asyncio.to_thread(_run_container)
+        print(f"Successfully started container {container.name} ({container.id})")
         # change mem if u have shitty server
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start container: {str(e)}")
@@ -200,7 +229,7 @@ def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id:
     }
 
 @app.get("/api/delete/{container_id}")
-def delete_vm(container_id: str, authorized: bool = Depends(verify_password)):
+async def delete_vm(container_id: str, authorized: bool = Depends(verify_password)):
     """
     Stops and removes a VM using its container ID.
     """
@@ -208,9 +237,13 @@ def delete_vm(container_id: str, authorized: bool = Depends(verify_password)):
         raise HTTPException(status_code=500, detail="Docker client not initialized.")
 
     try:
-        container = client.containers.get(container_id)
-        container.stop(timeout=5)
-        container.remove(force=True)
+        def _do_delete():
+            container = client.containers.get(container_id)
+            container.stop(timeout=5)
+            container.remove(force=True, v=True)
+            
+        await asyncio.to_thread(_do_delete)
+        print(f"Manually deleted container {container_id}")
         return {"status": "success", "message": f"Container {container_id} stopped and removed"}
     except docker.errors.NotFound:
         raise HTTPException(status_code=404, detail="Container not found")
@@ -218,7 +251,7 @@ def delete_vm(container_id: str, authorized: bool = Depends(verify_password)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/list")
-def list_vms(developer_id: str = None, authorized: bool = Depends(verify_password)):
+async def list_vms(developer_id: str = None, authorized: bool = Depends(verify_password)):
     """
     Lists all VMs, optionally filtered by developer_id.
     """
@@ -229,7 +262,10 @@ def list_vms(developer_id: str = None, authorized: bool = Depends(verify_passwor
     if developer_id:
         filters["label"] = f"developer_id={developer_id}"
     
-    containers = client.containers.list(all=True, filters=filters)
+    def _list_all():
+        return client.containers.list(all=True, filters=filters)
+        
+    containers = await asyncio.to_thread(_list_all)
     
     res = []
     for c in containers:
