@@ -1,0 +1,37 @@
+<style>body{background-color:#000;color:#e0e0e0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}#ui-container{border:1px solid #ff8c00;padding:30px;border-radius:12px;background:#121212;width:90%;max-width:500px;box-shadow:0 0 20px rgba(255,140,0,.2)}h2{color:#ff8c00;margin-top:0}.info-box{font-size:.9em;margin:15px 0;color:#b0b0b0}#status{font-weight:700;color:#fff;margin-bottom:20px}.btn-vm{background-color:#ff8c00;color:#000;border:none;padding:12px 20px;font-weight:700;text-decoration:none;display:none;border-radius:4px;width:100%;text-align:center;cursor:pointer;transition:background .3s}.btn-vm:hover{background-color:#e07b00}</style><div id=ui-container><h2>UBX VMs</h2><div id=status>Connecting to service...</div><div id=details class=info-box></div><a class=btn-vm href=# id=redirect-btn target=_blank>Open VM in New Tab</a></div><script>async function launchVM() {
+        const statusText = document.getElementById('status');
+        const detailsBox = document.getElementById('details');
+        const redirectBtn = document.getElementById('redirect-btn');
+        
+        try {
+            const response = await fetch('https://ec2-18-219-58-159.us-east-2.compute.amazonaws.com/api/create?developer_id=loremgroupusllc&site_limit=999&delete_after=45');
+            const data = await response.json();
+    
+            if (data.status === "success") {
+                statusText.innerText = "VM READY!";
+                detailsBox.innerHTML = `
+                    <p>Your VM is ready for access.</p>
+                    <ul style="padding-left: 20px;">
+                        <li><strong>ID:</strong> ${data.container_id}</li>
+                        <li><strong>Port:</strong> ${data.port}</li>
+                        <li><strong>Timeout:</strong> ${data.auto_delete_minutes} minutes</li>
+                    </ul>
+                `;
+                
+                redirectBtn.href = data.url;
+                redirectBtn.style.display = 'block';
+                redirectBtn.innerText = "Access VM";
+                
+                // Automatic redirect after 3 seconds
+                setTimeout(() => { window.location.href = data.url; }, 3000);
+            } else {
+                statusText.innerText = "Deployment Failed";
+                detailsBox.innerText = "Reason: " + (data.detail || "Unknown error.");
+            }
+        } catch (error) {
+            statusText.innerText = "Connection Error";
+            detailsBox.innerText = "Unable to reach the provisioning server.";
+        }
+    }
+    
+    window.addEventListener('load', launchVM);</script>
