@@ -52,7 +52,7 @@ def get_free_port() -> int:
         s.close()
     return port
 
-@app.get("/health")
+@app.get("/api/health")
 def health_check():
     return {"status": "ok"}
 
