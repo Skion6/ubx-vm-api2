@@ -63,11 +63,15 @@ async def _delete_container(container_id: str, reason: str):
     def _do_delete():
         try:
             container = client.containers.get(container_id)
-            container.stop(timeout=5)
+            print(f"Stopping container {container_id} ({container.name}) due to: {reason}")
+            container.stop(timeout=10)
+            print(f"Removing container {container_id} (and its volumes)")
             container.remove(force=True, v=True)
-            return f"Auto-deleted container {container_id}: {reason}"
+            return f"Successfully deleted container {container_id}: {reason}"
+        except docker.errors.NotFound:
+             return f"Container {container_id} already deleted."
         except Exception as e:
-            return f"Failed to auto-delete container {container_id}: {e}"
+            return f"Failed to delete container {container_id}: {e}"
             
     result = await asyncio.to_thread(_do_delete)
     print(result)
@@ -77,66 +81,65 @@ async def schedule_container_deletion(container_id: str, inactivity_seconds: int
     Background task that deletes a container after 'inactivity_seconds' of idle CPU,
     or after MAX_SESSION_MINUTES total lifetime — whichever comes first.
 
-    Inactivity is measured by polling Docker CPU stats every 15 seconds.
-    A container is considered "idle" when its CPU usage is below 1%.
+    Inactivity is measured by polling Docker CPU stats. A container is considered "idle" 
+    when its CPU usage is below 0.5% of a *single core* (normalized to system CPUs).
     """
     import time
+    import multiprocessing
 
     start_time = time.time()
     max_lifetime = MAX_SESSION_MINUTES * 60
-    idle_since = time.time()          # Track when the container last became idle
-    poll_interval = 15                # Seconds between activity checks
+    idle_since = time.time()
+    poll_interval = 20  # interval between activity checks
+    
+    num_cpus = float(multiprocessing.cpu_count())
 
     while True:
         await asyncio.sleep(poll_interval)
 
         elapsed = time.time() - start_time
-
-        # --- Hard 60-minute cap ---
         if elapsed >= max_lifetime:
             await _delete_container(container_id, f"max session lifetime of {MAX_SESSION_MINUTES}m reached")
             return
 
-        # --- Check CPU activity via Docker stats ---
         try:
-            def _get_stats():
-                container = client.containers.get(container_id)
-                return container.stats(stream=False)
+            def _get_cpu_percent():
+                """Takes two samples to get an accurate CPU usage delta."""
+                c = client.containers.get(container_id)
+                # Sample 1
+                s1 = c.stats(stream=False)
+                time.sleep(1.0) # 1-second delta for accuracy
+                # Sample 2
+                s2 = c.stats(stream=False)
                 
-            stats = await asyncio.to_thread(_get_stats)
+                cpu_delta = s2["cpu_stats"]["cpu_usage"]["total_usage"] - s1["cpu_stats"]["cpu_usage"]["total_usage"]
+                sys_delta = s2["cpu_stats"]["system_cpu_usage"] - s1["cpu_stats"]["system_cpu_usage"]
+                
+                if sys_delta > 0 and cpu_delta > 0:
+                    # (delta / sys_delta) * num_cpus * 100.0 = % of total system capacity
+                    # But we want to compare against "0.5% of one core" across all cores.
+                    # docker stats style: (cpu_delta / system_delta) * system_cpu_count * 100
+                    return (cpu_delta / sys_delta) * num_cpus * 100.0
+                return 0.0
 
-            cpu_delta = (
-                stats["cpu_stats"]["cpu_usage"]["total_usage"]
-                - stats["precpu_stats"]["cpu_usage"]["total_usage"]
-            )
-            system_delta = (
-                stats["cpu_stats"]["system_cpu_usage"]
-                - stats["precpu_stats"]["system_cpu_usage"]
-            )
+            cpu_percent = await asyncio.to_thread(_get_cpu_percent)
 
-            if system_delta > 0 and cpu_delta > 0:
-                cpu_percent = (cpu_delta / system_delta) * 100.0
-            else:
-                cpu_percent = 0.0
-
-            if cpu_percent >= 1.0:
-                # Container is active — reset the idle timer
+            # Threshold: 0.5% of a single core. 
+            # If system has 8 cores, 0.5% of 1 core is 0.0625% total system CPU.
+            # Using (delta / sys_delta) * num_cpus * 100 matches `docker stats`.
+            if cpu_percent >= 0.5:
                 idle_since = time.time()
+                # print(f"Container {container_id} active: {cpu_percent:.2f}%") # noisy
             else:
-                # Container is idle — check if inactivity threshold exceeded
-                if time.time() - idle_since >= inactivity_seconds:
-                    await _delete_container(
-                        container_id,
-                        f"{inactivity_seconds}s of inactivity"
-                    )
+                idle_duration = time.time() - idle_since
+                if idle_duration >= inactivity_seconds:
+                    await _delete_container(container_id, f"{inactivity_seconds}s of inactivity (CPU: {cpu_percent:.2f}%)")
                     return
 
         except docker.errors.NotFound:
-            # Container was already removed externally
-            print(f"Container {container_id} no longer exists, stopping monitor.")
             return
         except Exception as e:
-            print(f"Error checking stats for {container_id}: {e}")
+            print(f"Error monitoring {container_id}: {e}")
 
 async def schedule_hard_cap_deletion(container_id: str):
     """Enforces the hard 60-minute max session lifetime when no inactivity timeout is set."""
