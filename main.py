@@ -53,6 +53,7 @@ def get_free_port() -> int:
     return port
 
 @app.get("/api/health")
+@app.get("/health")  # Redundant for external health checks (e.g. Caddy/AWS)
 def health_check():
     return {"status": "ok"}
 
