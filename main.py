@@ -5,8 +5,14 @@ import asyncio
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Depends
 from fastapi.security import APIKeyQuery, APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="VM Management API", description="API to provision and manage KasmVNC Ubuntu VMs")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Hardcoded password for administrative actions
 #CHANGE IT!!!
@@ -148,6 +154,7 @@ async def schedule_hard_cap_deletion(container_id: str):
     await _delete_container(container_id, f"max session lifetime of {MAX_SESSION_MINUTES}m reached")
 
 @app.get("/api/create")
+@limiter.limit("5/minute")
 async def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id: str, site_limit: int = 5, delete_after: int = None):
     """
     Spins up a new VM container for a developer, ensuring they don't exceed their site_limit.
@@ -233,7 +240,8 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
     }
 
 @app.get("/api/delete/{container_id}")
-async def delete_vm(container_id: str, authorized: bool = Depends(verify_password)):
+@limiter.limit("10/minute")
+async def delete_vm(request: Request, container_id: str, authorized: bool = Depends(verify_password)):
     """
     Stops and removes a VM using its container ID.
     """
@@ -255,7 +263,8 @@ async def delete_vm(container_id: str, authorized: bool = Depends(verify_passwor
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/list")
-async def list_vms(developer_id: str = None, authorized: bool = Depends(verify_password)):
+@limiter.limit("10/minute")
+async def list_vms(request: Request, developer_id: str = None, authorized: bool = Depends(verify_password)):
     """
     Lists all VMs, optionally filtered by developer_id.
     """
