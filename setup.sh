@@ -16,17 +16,19 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-echo "2. Building Docker Image..."
-# Build the Ubuntu KasmVNC image locally
+echo "2. Running Configuration Script..."
+python3 setup.py
+
+echo "3. Building Docker Image..."
 docker build -t gamingoncodespaces .
 
-echo "3. Creating Python Virtual Environment..."
+echo "4. Creating Python Virtual Environment..."
 if [ ! -d "venv" ]; then
     python3 -m venv venv
 fi
 source venv/bin/activate
 
-echo "4. Installing Python Requirements..."
+echo "5. Installing Python Requirements..."
 pip install -r requirements.txt
 
 echo "=========================================="

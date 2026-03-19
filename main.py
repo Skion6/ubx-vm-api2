@@ -5,7 +5,11 @@ import asyncio
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Depends
 from fastapi.security import APIKeyQuery, APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
+import os
+from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
+
+load_dotenv()
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
@@ -14,9 +18,11 @@ app = FastAPI(title="VM Management API", description="API to provision and manag
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Hardcoded password for administrative actions
-#CHANGE IT!!!
-ADMIN_PASSWORD = "secret_password"
+# Configuration from environment variables
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "secret_password")
+MAX_VMS_PER_DEV = int(os.getenv("MAX_VMS_PER_DEV", "100"))
+MAX_INACTIVITY_MINUTES = int(os.getenv("MAX_INACTIVITY_MINUTES", "5"))
+MAX_SESSION_MINUTES = int(os.getenv("MAX_SESSION_MINUTES", "60"))
 
 api_key_query = APIKeyQuery(name="password", auto_error=False)
 api_key_header = APIKeyHeader(name="X-Admin-Password", auto_error=False)
@@ -63,7 +69,6 @@ def get_free_port() -> int:
 def health_check():
     return {"status": "ok"}
 
-MAX_SESSION_MINUTES = 60  # Hard cap: all sessions deleted after 60 minutes
 
 async def _delete_container(container_id: str, reason: str):
     """Helper to stop and remove a container using a thread to avoid blocking."""
@@ -160,8 +165,19 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
     Spins up a new VM container for a developer, ensuring they don't exceed their site_limit.
 
     - delete_after: seconds of inactivity (idle CPU < 1%) before the VM is auto-deleted.
-    - All sessions are hard-capped at 60 minutes regardless of activity.
+      Maximum allowed is MAX_INACTIVITY_MINUTES (default 5m).
+    - All sessions are hard-capped at MAX_SESSION_MINUTES (default 60m) regardless of activity.
     """
+    # Enforce site_limit cap
+    effective_site_limit = min(site_limit, MAX_VMS_PER_DEV)
+    
+    # Enforce inactivity cap (convert minutes to seconds)
+    max_inactivity_seconds = MAX_INACTIVITY_MINUTES * 60
+    if delete_after is None or delete_after > max_inactivity_seconds:
+        effective_delete_after = max_inactivity_seconds
+    else:
+        effective_delete_after = delete_after
+
     if not client:
         raise HTTPException(status_code=500, detail="Docker client not initialized. Is Docker running?")
 
@@ -175,8 +191,8 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
         print(f"Error listing containers: {e}")
         raise HTTPException(status_code=500, detail="Failed to communicate with Docker")
 
-    if len(containers) >= site_limit:
-        raise HTTPException(status_code=400, detail=f"Site limit of {site_limit} VMs reached for developer '{developer_id}'")
+    if len(containers) >= effective_site_limit:
+        raise HTTPException(status_code=400, detail=f"Site limit of {effective_site_limit} VMs reached for developer '{developer_id}'")
     
     # 2. Get a free port on the host
     host_port = get_free_port()
@@ -217,11 +233,9 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
         raise HTTPException(status_code=500, detail=f"Failed to start container: {str(e)}")
 
     # 4. Schedule deletion
-    if delete_after is not None and delete_after > 0:
-        # Inactivity-based deletion (also enforces the 60m hard cap internally)
-        background_tasks.add_task(schedule_container_deletion, container.id, delete_after)
+    if effective_delete_after > 0:
+        background_tasks.add_task(schedule_container_deletion, container.id, effective_delete_after)
     else:
-        # No inactivity timeout — still enforce the 60-minute hard cap
         background_tasks.add_task(schedule_hard_cap_deletion, container.id)
         
     # 5. Build dynamic return URL based on requested host
@@ -233,7 +247,7 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
         "name": container.name,
         "port": host_port,
         "developer_id": developer_id,
-        "inactivity_timeout_seconds": delete_after,
+        "inactivity_timeout_seconds": effective_delete_after,
         "max_session_minutes": MAX_SESSION_MINUTES,
         "message": "VM created successfully.",
         "url": f"http://{server_hostname}:{host_port}"

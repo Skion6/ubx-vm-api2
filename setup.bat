@@ -12,23 +12,19 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-where python >nul 2>nul
-if %errorlevel% neq 0 (
-    echo ERROR: python is not installed or not in PATH.
-    pause
-    exit /b 1
-)
+echo 2. Running Configuration Script...
+python setup.py
 
-echo 2. Building Docker Image...
+echo 3. Building Docker Image...
 docker build -t gamingoncodespaces .
 
-echo 3. Creating Python Virtual Environment...
+echo 4. Creating Python Virtual Environment...
 if not exist "venv\" (
     python -m venv venv
 )
 call venv\Scripts\activate.bat
 
-echo 4. Installing Python Requirements...
+echo 5. Installing Python Requirements...
 pip install -r requirements.txt
 
 echo ==========================================
