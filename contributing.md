@@ -1,4 +1,4 @@
-# Contributing to UBX VM API
+# Contributing to Xcloud
 
 Thank you for your interest in contributing! This project provides an API for managing lightweight Ubuntu VMs based on KasmVNC.
 
@@ -7,10 +7,10 @@ Thank you for your interest in contributing! This project provides an API for ma
 1.  **Report Bugs**: Use GitHub Issues to report bugs or unexpected behavior.
 2.  **Suggest Enhancements**: We welcome ideas for new features or improvements.
 3.  **Submit Pull Requests**:
-    -   Fork the repository.
-    -   Create a new branch for your feature or bug fix.
-    -   Ensure your code follows existing patterns (e.g., using `asyncio.to_thread` for blocking Docker calls).
-    -   Provide clear descriptions of your changes in the PR.
+    - Fork the repository.
+    - Create a new branch for your feature or bug fix.
+    - Ensure your code follows existing patterns (e.g., using `asyncio.to_thread` for blocking Docker calls).
+    - Provide clear descriptions of your changes in the PR.
 
 ## Development Setup
 
@@ -20,6 +20,7 @@ Thank you for your interest in contributing! This project provides an API for ma
 4.  Docker containers for VMs use the `xcloud` image.
 
 ## Code Standards
--   Use `FastAPI` for API endpoints.
--   Ensure all Docker SDK interactions are non-blocking.
--   Keep security in mind (administrative actions require a password).
+
+- Use `FastAPI` for API endpoints.
+- Ensure all Docker SDK interactions are non-blocking.
+- Keep security in mind (administrative actions require a password).

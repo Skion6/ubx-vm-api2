@@ -11,8 +11,9 @@ Follow these steps to set up Xcloud on your server.
 ## Step-by-Step Setup
 
 ### 1. Clone & Enter Directory
+
 ```bash
-git clone <your-repo-url>
+git clone https://gitlab.com/lorem-group-us/ubx-vm-api.git
 cd ubx-vm-api
 ```
 
@@ -20,18 +21,22 @@ cd ubx-vm-api
 
 **Windows:**
 Double-click `setup.bat` or run:
+
 ```cmd
 setup.bat
 ```
 
 **Linux/Mac:**
+
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
 
 ### 3. Configure API
+
 During the setup process, you will be prompted for:
+
 - **Admin Password**: Used for sensitive API calls (`/api/list`, `/api/delete`).
 - **Max VMs per Dev**: Hard cap for how many VMs a developer ID can host.
 - **Max Inactivity Time**: How many minutes of idle time before a VM is auto-deleted.

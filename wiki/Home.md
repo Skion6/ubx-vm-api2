@@ -4,14 +4,15 @@ Welcome to the Xcloud Wiki! Xcloud is a powerful, lightweight VM management API 
 
 ## Navigation
 
-- [Installation Guide](file:///c:/Users/easto/Code/ubx-vm-api/wiki/Installation.md)
-- [API Reference](file:///c:/Users/easto/Code/ubx-vm-api/wiki/API-Reference.md)
-- [Configuration & Limits](file:///c:/Users/easto/Code/ubx-vm-api/wiki/Configuration.md)
-- [Troubleshooting](file:///c:/Users/easto/Code/ubx-vm-api/wiki/Troubleshooting.md)
+- [Installation Guide](/wiki/Installation.md)
+- [API Reference](/wiki/API-Reference.md)
+- [Configuration & Limits](/wiki/Configuration.md)
+- [Troubleshooting](/wiki/Troubleshooting.md)
 
 ## What is Xcloud?
 
 Xcloud allows developers to spin up full Linux desktops in the browser with a single API call. It handles:
+
 - Docker container orchestration.
 - Dynamic port mapping.
 - Inactivity-based auto-deletion.

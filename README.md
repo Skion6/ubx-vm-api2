@@ -3,7 +3,7 @@
 A lightweight Python FastAPI application that provisions and manages isolated Linux (Ubuntu) VMs equipped with KasmVNC. This repository provides a scalable backend for allowing developers or websites to dynamically spin up fully-functional desktop environments via their browser.
 
 > [!TIP]
-> Check out the [Wiki](file:///c:/Users/easto/Code/ubx-vm-api/wiki/Home.md) for detailed guides and API references.
+> Check out the [Wiki](/wiki/Home.md) for detailed guides and API references.
 
 ## Features
 
