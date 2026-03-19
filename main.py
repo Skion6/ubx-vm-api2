@@ -14,7 +14,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="VM Management API", description="API to provision and manage KasmVNC Ubuntu VMs")
+app = FastAPI(title="Xcloud VM Management API", description="API to provision and manage Xcloud (Ubuntu) VMs")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -209,7 +209,7 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
     try:
         def _run_container():
             return client.containers.run(
-                "gamingoncodespaces",
+                "xcloud",
                 name=container_name,
                 detach=True,
                 environment={

@@ -1,15 +1,17 @@
-# VM Management API (GamingOnCodespaces)
-
-# Powered by UBX
+# Xcloud
 
 A lightweight Python FastAPI application that provisions and manages isolated Linux (Ubuntu) VMs equipped with KasmVNC. This repository provides a scalable backend for allowing developers or websites to dynamically spin up fully-functional desktop environments via their browser.
+
+> [!TIP]
+> Check out the [Wiki](file:///c:/Users/easto/Code/ubx-vm-api/wiki/Home.md) for detailed guides and API references.
 
 ## Features
 
 - **Dynamic VM Provisioning**: Spin up Ubuntu desktops on-demand via a simple API call.
 - **Hardware Constraints**: Each container is tightly limited to 4 CPU cores and 8GB of RAM.
-- **Developer Limits**: Easily restrict how many VMs a specific developer or site can host concurrently.
-- **Time Limits**: Automatically shut down and clean up containers after a set amount of minutes.
+- **Developer Limits**: Easily restrict how many VMs a specific developer or site can host concurrently (Default Max: 100).
+- **Time Limits**: Automatically shut down and clean up containers after a set amount of inactivity (Default Max: 5 minutes).
+- **Docker Image**: VMs use the `xcloud` Docker image.
 - **Dynamic Routing**: Internal KasmVNC (port 3000) is dynamically mapped to free host ports.
 
 ## Requirements
@@ -40,7 +42,7 @@ Double click the `setup.bat` file, or run it in your terminal:
 setup.bat
 ```
 
-The script will automatically build the `gamingoncodespaces` Docker template, install Python dependencies, and launch the API server on **Port 8000**.
+The script will automatically build the `xcloud` Docker template, install Python dependencies, and launch the API server on **Port 8000**.
 
 ---
 

@@ -1,5 +1,5 @@
 {
-  "name": "ubx-vm-api",
+  "name": "xcloud-fullstack",
   "version": "1.0.0",
   "description": "Express.js server to create and proxy VM instances",
   "main": "index.js",

@@ -1,6 +1,6 @@
 @echo off
 echo ==========================================
-echo     VM API - Setup Script      
+echo     Xcloud - Setup Script      
 echo ==========================================
 
 echo 1. Checking Dependencies...
@@ -16,7 +16,7 @@ echo 2. Running Configuration Script...
 python setup.py
 
 echo 3. Building Docker Image...
-docker build -t gamingoncodespaces .
+docker build -t xcloud .
 
 echo 4. Creating Python Virtual Environment...
 if not exist "venv\" (

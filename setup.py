@@ -2,7 +2,7 @@ import os
 
 def main():
     print("==========================================")
-    print("    VM API - Configuration Script")
+    print("    Xcloud - Configuration Script")
     print("==========================================")
 
     env_path = ".env"
