@@ -1,0 +1,23 @@
+#!/with-contenv bash
+
+if [ -n "$VNC_FAVICON_URL" ]; then
+    echo "**** Custom favicon requested: $VNC_FAVICON_URL ****"
+    # Try common KasmVNC favicon locations and replace them
+    # Most Linuxserver KasmVNC images use /usr/share/kasmvnc/www/favicon.ico
+    # Some older or custom versions might use /kclient/public/favicon.ico
+    
+    FAVICON_LOCATIONS="/usr/share/kasmvnc/www/favicon.ico /kclient/public/favicon.ico"
+    
+    for loc in $FAVICON_LOCATIONS; do
+        if [ -f "$loc" ] || [ ! -d "$(dirname "$loc")" ]; then
+            # If the file exists, replace it. 
+            # If the directory doesn't exist, we skip (it's not the right location)
+            echo "Attempting to replace favicon at $loc"
+            if wget -qO "$loc" "$VNC_FAVICON_URL"; then
+                echo "Successfully replaced favicon at $loc"
+            else
+                echo "Failed to download favicon from $VNC_FAVICON_URL for $loc"
+            fi
+        fi
+    done
+fi

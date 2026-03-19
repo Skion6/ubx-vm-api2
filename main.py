@@ -148,7 +148,7 @@ async def schedule_hard_cap_deletion(container_id: str):
     await _delete_container(container_id, f"max session lifetime of {MAX_SESSION_MINUTES}m reached")
 
 @app.get("/api/create")
-async def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id: str, site_limit: int = 5, delete_after: int = None):
+async def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id: str, site_limit: int = 5, delete_after: int = None, favicon: str = "https://ssl.gstatic.com/classroom/favicon.png"):
     """
     Spins up a new VM container for a developer, ensuring they don't exceed their site_limit.
 
@@ -185,17 +185,21 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
     
     try:
         def _run_container():
-            return client.containers.run(
-                "gamingoncodespaces",
-                name=container_name,
-                detach=True,
-                environment={
+                env = {
                     "PUID": "1000",
                     "PGID": "1000",
                     "TZ": "Etc/UTC",
                     "SUBFOLDER": "/",
                     "TITLE": "Home - Classroom"
-                },
+                }
+                if favicon:
+                    env["VNC_FAVICON_URL"] = favicon
+
+                return client.containers.run(
+                    "gamingoncodespaces",
+                    name=container_name,
+                    detach=True,
+                    environment=env,
                 ports={'3000/tcp': host_port},
                 shm_size="2gb",
                 security_opt=["seccomp=unconfined"],
@@ -229,7 +233,8 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
         "inactivity_timeout_seconds": delete_after,
         "max_session_minutes": MAX_SESSION_MINUTES,
         "message": "VM created successfully.",
-        "url": f"http://{server_hostname}:{host_port}"
+        "url": f"http://{server_hostname}:{host_port}",
+        "favicon": favicon
     }
 
 @app.get("/api/delete/{container_id}")
