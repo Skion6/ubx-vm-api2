@@ -48,7 +48,6 @@ COPY /root /
 
 RUN \
   chmod +x /installapps.sh && \
-  chmod +x /etc/cont-init.d/99-favicon && \
   /installapps.sh && \
   rm /installapps.sh
 
