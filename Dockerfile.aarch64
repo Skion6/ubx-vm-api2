@@ -49,7 +49,6 @@ RUN \
 
 # add local files
 COPY /root /
-RUN chmod +x /etc/cont-init.d/99-favicon
 
 # ports and volumes
 EXPOSE 3000
