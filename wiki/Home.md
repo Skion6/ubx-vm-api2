@@ -8,6 +8,7 @@ Welcome to the Xcloud Wiki! Xcloud is a powerful, lightweight VM management API 
 - [API Reference](/wiki/API-Reference.md)
 - [Configuration & Limits](/wiki/Configuration.md)
 - [Troubleshooting](/wiki/Troubleshooting.md)
+- [Pricing](/wiki/Pricing.md)
 
 ## What is Xcloud?
 
