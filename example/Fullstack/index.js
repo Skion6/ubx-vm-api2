@@ -148,122 +148,159 @@ app.get('/api/vm/:containerId', async (req, res) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VM: ${name}</title>
+    <title>VM Console | ${name}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg-color: #0a0a0d;
+            --header-bg: #12121a;
+            --primary-color: #ff6b00;
+            --text-main: #e1e1e6;
+            --text-muted: #9494a3;
+            --border-color: rgba(255, 107, 0, 0.15);
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: #1a1a1a;
-            color: #fff;
-            min-height: 100vh;
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
+
         .header {
-            background: #2d2d2d;
-            padding: 15px 20px;
+            background: var(--header-bg);
+            padding: 12px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #404040;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 20;
         }
-        .vm-info {
+
+        .vm-brand {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 12px;
         }
+
+        .logo-small {
+            width: 24px;
+            height: 24px;
+            background: var(--primary-color);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: 800;
+            font-size: 14px;
+        }
+
         .vm-name {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
-            color: #4CAF50;
+            color: var(--text-main);
         }
-        .vm-id {
-            font-size: 12px;
-            color: #888;
+
+        .vm-id-tag {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.03);
+            padding: 2px 8px;
+            border-radius: 4px;
             font-family: monospace;
         }
-        .timer-section {
+
+        .controls {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 24px;
         }
-        .timer {
-            font-size: 18px;
-            font-weight: bold;
-            color: #ff9800;
+
+        .timer-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-family: monospace;
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 16px;
         }
-        .timer.warning {
-            color: #f44336;
+
+        .timer-box.warning {
+            color: #ff5252;
             animation: pulse 1s infinite;
         }
+
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.6; }
         }
-        .inactivity-note {
+
+        .inactivity-status {
             font-size: 12px;
-            color: #888;
-            background: #333;
-            padding: 5px 10px;
-            border-radius: 4px;
+            color: var(--text-muted);
         }
-        .vm-container {
+
+        .vm-viewport {
             flex: 1;
             position: relative;
+            background: #000;
         }
+
         iframe {
             width: 100%;
             height: 100%;
             border: none;
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 0; left: 0;
         }
-        .loading-overlay {
+
+        .overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #1a1a1a;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-color);
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 10;
+            gap: 20px;
         }
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #333;
-            border-top: 4px solid #4CAF50;
+
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 107, 0, 0.1);
+            border-top: 3px solid var(--primary-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="vm-info">
-            <span class="vm-name">VM: ${name}</span>
-            <span class="vm-id">ID: ${containerId.substring(0, 12)}...</span>
+        <div class="vm-brand">
+            <div class="logo-small">U</div>
+            <span class="vm-name">${name}</span>
+            <span class="vm-id-tag">${containerId.substring(0, 12)}</span>
         </div>
-        <div class="timer-section">
-            <span class="inactivity-note">⚠️ Inactivity timeout: ${inactivityTimeoutSeconds}s</span>
-            <span class="timer" id="timer">${maxSessionMinutes}:00</span>
+        <div class="controls">
+            <span class="inactivity-status">⚠️ Inactivity Protocol Active (${inactivityTimeoutSeconds}s)</span>
+            <div class="timer-box" id="timer">${maxSessionMinutes}:00</div>
         </div>
     </div>
-    <div class="vm-container">
-        <div class="loading-overlay" id="loading">
-            <div class="loading-spinner"></div>
+    <div class="vm-viewport">
+        <div class="overlay" id="loading">
+            <div class="loader"></div>
+            <p style="font-size: 13px; color: var(--text-muted);">Attaching to workspace...</p>
         </div>
         <iframe 
             id="vmFrame" 
@@ -274,68 +311,35 @@ app.get('/api/vm/:containerId', async (req, res) => {
     </div>
 
     <script>
-        // Session countdown
         let totalSeconds = ${maxSessionMinutes} * 60;
         const timerEl = document.getElementById('timer');
         
-        function updateTimer() {
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            timerEl.textContent = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+        const updateTimer = () => {
+            const m = Math.floor(totalSeconds / 60);
+            const s = totalSeconds % 60;
+            timerEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
             
-            // Warning when less than 5 minutes
-            if (totalSeconds <= 300) {
-                timerEl.classList.add('warning');
-            }
+            if (totalSeconds <= 300) timerEl.classList.add('warning');
             
             if (totalSeconds <= 0) {
                 timerEl.textContent = 'EXPIRED';
-                timerEl.classList.add('warning');
                 document.getElementById('vmFrame').style.display = 'none';
-                document.getElementById('loading').innerHTML = '<h2 style="color: #f44336;">Session Expired</h2>';
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('loading').innerHTML = '<h2 style="color: #ff5252;">Session Expired</h2>';
                 return;
             }
-            
             totalSeconds--;
-        }
+        };
         
-        // Update timer every second
         setInterval(updateTimer, 1000);
         
-        // Hide loading overlay when iframe loads
         const iframe = document.getElementById('vmFrame');
         const loading = document.getElementById('loading');
         
-        iframe.onload = function() {
-            loading.style.display = 'none';
+        iframe.onload = () => loading.style.display = 'none';
+        iframe.onerror = () => {
+            loading.innerHTML = '<h2 style="color: #ff5252;">Failed to load environment</h2>';
         };
-        
-        // Also handle iframe error
-        iframe.onerror = function() {
-            loading.innerHTML = '<h2 style="color: #f44336;">Failed to load VM</h2>';
-        };
-        
-        // Track user activity to reset inactivity timer
-        let inactivityTimer = ${inactivityTimeoutSeconds};
-        
-        function resetInactivityTimer() {
-            inactivityTimer = ${inactivityTimeoutSeconds};
-        }
-        
-        // Listen for user activity
-        document.addEventListener('mousemove', resetInactivityTimer);
-        document.addEventListener('keydown', resetInactivityTimer);
-        document.addEventListener('click', resetInactivityTimer);
-        document.addEventListener('scroll', resetInactivityTimer);
-        
-        // Check inactivity (this is just for display, actual timeout is handled by VM)
-        setInterval(() => {
-            inactivityTimer--;
-            if (inactivityTimer <= 0) {
-                // The VM will handle the actual timeout
-                console.log('User inactive for ' + ${inactivityTimeoutSeconds} + ' seconds');
-            }
-        }, 1000);
     </script>
 </body>
 </html>
