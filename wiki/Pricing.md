@@ -10,7 +10,8 @@
 
 - **$5/month per user**
 - Get a dedicated instance that doesn't get deleted unless you cancel
-- Priority access and guaranteed resources
+- Guaranteed resources
+- Uptime guarantee of 85%
 
 ## Partner Program
 
