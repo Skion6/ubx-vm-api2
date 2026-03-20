@@ -9,7 +9,7 @@ LABEL maintainer="mollomm1"
 ARG DEBIAN_FRONTEND="noninteractive"
 
 # prevent Ubuntu's firefox stub from being installed
-COPY /root/etc/apt/preferences.d/firefox-no-snap /etc/apt/preferences.d/firefox-no-snap
+COPY root/etc/apt/preferences.d/firefox-no-snap /etc/apt/preferences.d/firefox-no-snap
 
 RUN \
   echo "**** install packages ****" && \
@@ -44,12 +44,14 @@ RUN \
 
 COPY options.json /
 
-COPY /root /
+COPY ./root/ /
 
 RUN \
+  echo "**** running installapps.sh ****" && \
   chmod +x /installapps.sh && \
   /installapps.sh && \
-  rm /installapps.sh
+  rm /installapps.sh && \
+  echo "**** installapps.sh completed ****"
 
 RUN \
   echo "**** cleanup ****" && \

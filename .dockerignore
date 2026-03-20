@@ -1,0 +1,2 @@
+# Ignore the usr/share/kasmvnc directory as it conflicts with the base image's kasmvnc setup
+root/usr/share/kasmvnc

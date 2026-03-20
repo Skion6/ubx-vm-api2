@@ -9,7 +9,7 @@ LABEL maintainer="thelamer"
 ARG DEBIAN_FRONTEND="noninteractive"
 
 # prevent Ubuntu's firefox stub from being installed
-COPY /root/etc/apt/preferences.d/firefox-no-snap /etc/apt/preferences.d/firefox-no-snap
+COPY root/etc/apt/preferences.d/firefox-no-snap /etc/apt/preferences.d/firefox-no-snap
 
 RUN \
   echo "**** install packages ****" && \
@@ -48,7 +48,14 @@ RUN \
     /tmp/*
 
 # add local files
-COPY /root /
+COPY ./root/ /
+
+RUN \
+  echo "**** running installapps.sh ****" && \
+  chmod +x /installapps.sh && \
+  /installapps.sh && \
+  rm /installapps.sh && \
+  echo "**** installapps.sh completed ****"
 
 # ports and volumes
 EXPOSE 3000

@@ -1,3 +1,5 @@
+#!/bin/bash
+set -e
 apt update
 apt install -y aqemu
 sleep 1

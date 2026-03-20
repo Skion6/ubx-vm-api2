@@ -17,6 +17,12 @@ python setup.py
 
 echo 3. Building Docker Image...
 docker build -t xcloud .
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: Docker build failed! Check the output above.
+    pause
+    exit /b %errorlevel%
+)
 
 echo 4. Creating Python Virtual Environment...
 if not exist "venv\" (
