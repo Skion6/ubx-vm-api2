@@ -7,6 +7,7 @@ const PORT = process.env.PORT || 3000;
 
 // EC2 API URL
 const EC2_BASE_URL = 'https://ec2-18-219-58-159.us-east-2.compute.amazonaws.com';
+const EC2_HOST = 'ec2-18-219-58-159.us-east-2.compute.amazonaws.com';
 const CREATE_VM_URL = `${EC2_BASE_URL}/api/create?developer_id=your_name&site_limit=10&delete_after=60`;
 
 // Store for VM data (in production, use a proper data store)
@@ -104,6 +105,49 @@ app.get('/api/vm', async (req, res) => {
         console.error('Error creating VM:', error);
         return res.status(500).json({ 
             error: 'Failed to create VM', 
+            details: error.message 
+        });
+    }
+});
+
+// Route to connect to an existing port (Friend's VM)
+app.get('/api/connect/:port', async (req, res) => {
+    const { port } = req.params;
+    const vmUrl = `http://${EC2_HOST}:${port}/`;
+    
+    try {
+        console.log(`Manually connecting to port ${port}...`);
+        
+        // Use a generic container ID for manual connections
+        const containerId = `manual-${port}`;
+        
+        // Check health of the manual port
+        console.log(`Checking health for manual port ${port} at ${vmUrl}...`);
+        const healthCheck = await checkEC2Health(vmUrl);
+        
+        const vmData = {
+            status: 'success',
+            url: vmUrl,
+            container_id: containerId,
+            port: port,
+            name: `Friend's Session (${port})`,
+            verified: healthCheck.healthy
+        };
+        
+        // Store in vmStore so the dynamic iframe route can find it
+        vmStore.set(containerId, {
+            ...vmData,
+            createdAt: Date.now(),
+            max_session_minutes: 60, // Default for manual
+            inactivity_timeout_seconds: 60 // Default for manual
+        });
+        
+        return res.json(vmData);
+        
+    } catch (error) {
+        console.error('Error connecting to port:', error);
+        return res.status(500).json({ 
+            error: 'Failed to connect to port', 
             details: error.message 
         });
     }
@@ -346,7 +390,7 @@ app.get('/api/vm/:containerId', async (req, res) => {
     `;
     
     res.setHeader('Content-Type', 'text/html');
-    res.setHeader('X-Frame-Options', 'ALLOW-FROM *');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.send(html);
 });
 

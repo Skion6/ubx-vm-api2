@@ -283,6 +283,14 @@
         <button class="create-btn" id="createBtn" onclick="createVM()">
             <span class="plus-icon">+</span> Launch New Instance
         </button>
+
+        <div id="connectFriendSection" style="margin-top: -20px; margin-bottom: 40px; animation: fadeIn 1s ease-out;">
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;">Connect with Friend</p>
+            <div style="display: flex; gap: 10px; max-width: 320px; margin: 0 auto; background: var(--glass-bg); padding: 6px; border-radius: 14px; border: 1px solid var(--border-color);">
+                <input type="number" id="friendPort" placeholder="Port #" style="flex: 1; background: transparent; border: none; padding: 10px 14px; color: #fff; outline: none; font-family: 'Outfit', sans-serif; font-size: 0.95rem;">
+                <button onclick="connectToPort()" style="background: var(--primary-color); border: none; color: #000; padding: 0 18px; border-radius: 10px; font-weight: 700; cursor: pointer; transition: var(--transition); font-size: 0.85rem;">Join</button>
+            </div>
+        </div>
         
         <div class="spinner-container" id="spinner">
             <div class="loading-spinner"></div>
@@ -314,6 +322,7 @@
         
         async function createVM() {
             const createBtn = document.getElementById('createBtn');
+            const connectFriendSection = document.getElementById('connectFriendSection');
             const spinner = document.getElementById('spinner');
             const status = document.getElementById('status');
             const vmGrid = document.getElementById('vmGrid');
@@ -326,6 +335,7 @@
             // UI Transition
             createBtn.disabled = true;
             createBtn.style.opacity = '0';
+            connectFriendSection.style.display = 'none';
             setTimeout(() => createBtn.style.display = 'none', 300);
             
             status.style.display = 'none';
@@ -340,61 +350,121 @@
             try {
                 const response = await fetch('/api/vm');
                 const vmData = await response.json();
-                currentVmData = vmData;
-                
-                spinner.classList.remove('active');
-                
-                if (vmData.status === 'success') {
-                    mainHeader.style.display = 'none';
-                    
-                    status.className = 'status ready';
-                    status.innerHTML = `✓ Instance Online`;
-                    status.style.display = 'block';
-                    
-                    const maxSession = vmData.max_session_minutes || 60;
-                    const inactivityTimeout = vmData.inactivity_timeout_seconds || 60;
-                    
-                    document.getElementById('inactivityTimeout').textContent = inactivityTimeout;
-                    document.getElementById('maxSession').textContent = maxSession;
-                    
-                    vmGrid.innerHTML = `
-                        <div class="vm-card">
-                            <div class="vm-label">Instance ID</div>
-                            <div class="vm-value">${vmData.container_id.substring(0, 16)}...</div>
-                        </div>
-                        <div class="vm-card">
-                            <div class="vm-label">Resource Hub</div>
-                            <div class="vm-value">${vmData.name}</div>
-                        </div>
-                        <div class="vm-card">
-                            <div class="vm-label">Access Port</div>
-                            <div class="vm-value">${vmData.port}</div>
-                        </div>
-                    `;
-                    vmGrid.style.display = 'grid';
-                    
-                    startTimer(maxSession);
-                    timerDisplay.style.display = 'inline-flex';
-                    inactivityNote.style.display = 'block';
-                    
-                    vmFrameContainer.classList.add('active');
-                    document.getElementById('vmFrame').src = vmData.url;
-                    
-                    backBtn.classList.add('active');
-                } else {
-                    throw new Error(vmData.message || 'Provisioning sequence failed');
-                }
-                
+                handleVmData(vmData);
             } catch (error) {
-                spinner.classList.remove('active');
-                createBtn.style.display = 'inline-flex';
-                setTimeout(() => createBtn.style.opacity = '1', 50);
-                createBtn.disabled = false;
-                
-                status.className = 'status error';
-                status.innerHTML = `Error: ${error.message}`;
-                status.style.display = 'block';
+                handleVmError(error);
             }
+        }
+
+        async function connectToPort() {
+            const port = document.getElementById('friendPort').value;
+            if (!port) return alert('Please enter a port number');
+
+            const createBtn = document.getElementById('createBtn');
+            const connectFriendSection = document.getElementById('connectFriendSection');
+            const spinner = document.getElementById('spinner');
+            const status = document.getElementById('status');
+            const vmGrid = document.getElementById('vmGrid');
+            const timerDisplay = document.getElementById('timerDisplay');
+            const inactivityNote = document.getElementById('inactivityNote');
+            const vmFrameContainer = document.getElementById('vmFrameContainer');
+            const backBtn = document.getElementById('backBtn');
+            const mainHeader = document.getElementById('mainHeader');
+
+            // UI Transition
+            createBtn.disabled = true;
+            createBtn.style.opacity = '0';
+            connectFriendSection.style.display = 'none';
+            setTimeout(() => createBtn.style.display = 'none', 300);
+
+            status.style.display = 'none';
+            vmGrid.style.display = 'none';
+            timerDisplay.style.display = 'none';
+            inactivityNote.style.display = 'none';
+            vmFrameContainer.classList.remove('active');
+            backBtn.classList.remove('active');
+
+            spinner.classList.add('active');
+
+            try {
+                const response = await fetch(`/api/connect/${port}`);
+                const vmData = await response.json();
+                handleVmData(vmData);
+            } catch (error) {
+                handleVmError(error);
+            }
+        }
+
+        function handleVmData(vmData) {
+            const spinner = document.getElementById('spinner');
+            const status = document.getElementById('status');
+            const vmGrid = document.getElementById('vmGrid');
+            const timerDisplay = document.getElementById('timerDisplay');
+            const inactivityNote = document.getElementById('inactivityNote');
+            const vmFrameContainer = document.getElementById('vmFrameContainer');
+            const backBtn = document.getElementById('backBtn');
+            const mainHeader = document.getElementById('mainHeader');
+
+            currentVmData = vmData;
+            spinner.classList.remove('active');
+            
+            if (vmData.status === 'success') {
+                mainHeader.style.display = 'none';
+                
+                status.className = 'status ready';
+                status.innerHTML = `✓ Instance Online`;
+                status.style.display = 'block';
+                
+                const maxSession = vmData.max_session_minutes || 60;
+                const inactivityTimeout = vmData.inactivity_timeout_seconds || 60;
+                
+                document.getElementById('inactivityTimeout').textContent = inactivityTimeout;
+                document.getElementById('maxSession').textContent = maxSession;
+                
+                vmGrid.innerHTML = `
+                    <div class="vm-card">
+                        <div class="vm-label">Instance ID</div>
+                        <div class="vm-value">${vmData.container_id.substring(0, 16)}...</div>
+                    </div>
+                    <div class="vm-card">
+                        <div class="vm-label">Resource Hub</div>
+                        <div class="vm-value">${vmData.name}</div>
+                    </div>
+                    <div class="vm-card">
+                        <div class="vm-label">Access Port</div>
+                        <div class="vm-value">${vmData.port}</div>
+                    </div>
+                `;
+                vmGrid.style.display = 'grid';
+                
+                startTimer(maxSession);
+                timerDisplay.style.display = 'inline-flex';
+                inactivityNote.style.display = 'block';
+                
+                vmFrameContainer.classList.add('active');
+                document.getElementById('vmFrame').src = `/api/vm/${vmData.container_id}`;
+                
+                backBtn.classList.add('active');
+            } else {
+                throw new Error(vmData.message || 'Provisioning sequence failed');
+            }
+        }
+
+        function handleVmError(error) {
+            const createBtn = document.getElementById('createBtn');
+            const connectFriendSection = document.getElementById('connectFriendSection');
+            const spinner = document.getElementById('spinner');
+            const status = document.getElementById('status');
+
+            spinner.classList.remove('active');
+            createBtn.style.display = 'inline-flex';
+            connectFriendSection.style.display = 'block';
+            setTimeout(() => createBtn.style.opacity = '1', 50);
+            createBtn.disabled = false;
+            
+            status.className = 'status error';
+            status.innerHTML = `Error: ${error.message}`;
+            status.style.display = 'block';
         }
         
         function startTimer(maxMinutes) {
