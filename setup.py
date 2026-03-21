@@ -19,12 +19,15 @@ def main():
     max_vms = input(f"Enter Max VMs per Developer [{existing_config.get('MAX_VMS_PER_DEV', '100')}]: ") or existing_config.get('MAX_VMS_PER_DEV', '100')
     max_inactivity = input(f"Enter Max Inactivity Time (minutes) [{existing_config.get('MAX_INACTIVITY_MINUTES', '5')}]: ") or existing_config.get('MAX_INACTIVITY_MINUTES', '5')
     max_session = input(f"Enter Max Session Lifetime (minutes) [{existing_config.get('MAX_SESSION_MINUTES', '60')}]: ") or existing_config.get('MAX_SESSION_MINUTES', '60')
+    premium_code = input(f"Enter Premium Code(s), comma-separated (leave empty for none) [{existing_config.get('PREMIUM_CODE', '')}]: ") or existing_config.get('PREMIUM_CODE', '')
 
     with open(env_path, "w") as f:
         f.write(f"ADMIN_PASSWORD={admin_password}\n")
         f.write(f"MAX_VMS_PER_DEV={max_vms}\n")
         f.write(f"MAX_INACTIVITY_MINUTES={max_inactivity}\n")
         f.write(f"MAX_SESSION_MINUTES={max_session}\n")
+        if premium_code:
+            f.write(f"PREMIUM_CODE={premium_code}\n")
 
     print("\nConfiguration saved to .env")
     print("==========================================\n")

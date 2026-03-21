@@ -46,8 +46,17 @@ app.get('/api/vm', async (req, res) => {
     try {
         console.log('Creating VM...');
         
+        // Get optional premium code from query parameter
+        const premiumCode = req.query.premium || '';
+        
+        // Build the API URL with optional premium code
+        let apiUrl = CREATE_VM_URL;
+        if (premiumCode) {
+            apiUrl += `&premium=${encodeURIComponent(premiumCode)}`;
+        }
+        
         // Call the EC2 API to create a VM
-        const response = await fetch(CREATE_VM_URL, {
+        const response = await fetch(apiUrl, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'

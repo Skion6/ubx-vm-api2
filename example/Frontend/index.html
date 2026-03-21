@@ -212,12 +212,23 @@
                     <span class="info-label">Session TTL</span>
                     <span class="info-value" id="val-timeout">...</span>
                 </div>
+                <div class="info-item" id="premium-row" style="display: none;">
+                    <span class="info-label">Premium</span>
+                    <span class="info-value" style="color: var(--primary-color);">✓ Active</span>
+                </div>
             </div>
         </div>
 
         <a class="btn-vm" href="#" id="redirect-btn">Start Session</a>
 
-        <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.05);">
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.05);">
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">Premium Code (optional)</p>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="premium-code" placeholder="Enter premium code" style="flex: 1; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; color: #fff; outline: none; font-family: 'Outfit', sans-serif;">
+            </div>
+        </div>
+
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.05);">
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Connect with Friend</p>
             <div style="display: flex; gap: 8px;">
                 <input type="number" id="friend-port" placeholder="Enter Port" style="flex: 1; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; color: #fff; outline: none; font-family: 'Outfit', sans-serif;">
@@ -233,9 +244,14 @@
             const statusText = document.getElementById('status');
             const detailsBox = document.getElementById('details');
             const redirectBtn = document.getElementById('redirect-btn');
+            const premiumCode = document.getElementById('premium-code').value.trim();
             
             try {
-                const response = await fetch(`https://${EC2_HOST}/api/create?developer_id=loremgroupusllc&site_limit=999&delete_after=45`);
+                let apiUrl = `https://${EC2_HOST}/api/create?developer_id=loremgroupusllc&site_limit=999&delete_after=45`;
+                if (premiumCode) {
+                    apiUrl += `&premium=${encodeURIComponent(premiumCode)}`;
+                }
+                const response = await fetch(apiUrl);
                 const data = await response.json();
         
                 if (data.status === "success") {
@@ -244,7 +260,11 @@
                     
                     document.getElementById('val-id').innerText = data.container_id.substring(0, 12);
                     document.getElementById('val-port').innerText = data.port;
-                    document.getElementById('val-timeout').innerText = data.max_session_minutes + "m";
+                    document.getElementById('val-timeout').innerText = data.premium ? 'Unlimited' : data.max_session_minutes + "m";
+                    
+                    if (data.premium) {
+                        document.getElementById('premium-row').style.display = 'flex';
+                    }
                     
                     detailsBox.style.display = 'block';
                     

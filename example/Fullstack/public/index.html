@@ -284,6 +284,13 @@
             <span class="plus-icon">+</span> Launch New Instance
         </button>
 
+        <div id="premiumSection" style="margin-top: 20px; margin-bottom: 20px; animation: fadeIn 1s ease-out;">
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;">Premium Code (optional)</p>
+            <div style="display: flex; gap: 10px; max-width: 320px; margin: 0 auto; background: var(--glass-bg); padding: 6px; border-radius: 14px; border: 1px solid var(--border-color);">
+                <input type="text" id="premiumCode" placeholder="Enter premium code" style="flex: 1; background: transparent; border: none; padding: 10px 14px; color: #fff; outline: none; font-family: 'Outfit', sans-serif; font-size: 0.95rem;">
+            </div>
+        </div>
+
         <div id="connectFriendSection" style="margin-top: -20px; margin-bottom: 40px; animation: fadeIn 1s ease-out;">
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;">Connect with Friend</p>
             <div style="display: flex; gap: 10px; max-width: 320px; margin: 0 auto; background: var(--glass-bg); padding: 6px; border-radius: 14px; border: 1px solid var(--border-color);">
@@ -348,7 +355,12 @@
             spinner.classList.add('active');
             
             try {
-                const response = await fetch('/api/vm');
+                const premiumCode = document.getElementById('premiumCode').value.trim();
+                let apiUrl = '/api/vm';
+                if (premiumCode) {
+                    apiUrl += `?premium=${encodeURIComponent(premiumCode)}`;
+                }
+                const response = await fetch(apiUrl);
                 const vmData = await response.json();
                 handleVmData(vmData);
             } catch (error) {
@@ -415,8 +427,9 @@
                 status.innerHTML = `✓ Instance Online`;
                 status.style.display = 'block';
                 
-                const maxSession = vmData.max_session_minutes || 60;
-                const inactivityTimeout = vmData.inactivity_timeout_seconds || 60;
+                const isPremium = vmData.premium || false;
+                const maxSession = isPremium ? 99999 : (vmData.max_session_minutes || 60);
+                const inactivityTimeout = isPremium ? 'Unlimited' : (vmData.inactivity_timeout_seconds || 60);
                 
                 document.getElementById('inactivityTimeout').textContent = inactivityTimeout;
                 document.getElementById('maxSession').textContent = maxSession;
@@ -437,9 +450,20 @@
                 `;
                 vmGrid.style.display = 'grid';
                 
-                startTimer(maxSession);
-                timerDisplay.style.display = 'inline-flex';
-                inactivityNote.style.display = 'block';
+                // Show premium badge in the VM info
+                if (isPremium) {
+                    vmGrid.innerHTML += `
+                        <div class="vm-card" style="grid-column: 1 / -1; background: rgba(255, 107, 0, 0.1); border: 1px solid var(--primary-color);">
+                            <div class="vm-label" style="color: var(--primary-color);">★ Premium - No Auto-Delete</div>
+                        </div>
+                    `;
+                }
+                
+                if (!isPremium) {
+                    startTimer(maxSession);
+                    timerDisplay.style.display = 'inline-flex';
+                    inactivityNote.style.display = 'block';
+                }
                 
                 vmFrameContainer.classList.add('active');
                 document.getElementById('vmFrame').src = `/api/vm/${vmData.container_id}`;

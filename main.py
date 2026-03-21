@@ -23,6 +23,7 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "secret_password")
 MAX_VMS_PER_DEV = int(os.getenv("MAX_VMS_PER_DEV", "100"))
 MAX_INACTIVITY_MINUTES = int(os.getenv("MAX_INACTIVITY_MINUTES", "5"))
 MAX_SESSION_MINUTES = int(os.getenv("MAX_SESSION_MINUTES", "60"))
+PREMIUM_CODE = os.getenv("PREMIUM_CODE", "")
 
 api_key_query = APIKeyQuery(name="password", auto_error=False)
 api_key_header = APIKeyHeader(name="X-Admin-Password", auto_error=False)
@@ -160,14 +161,25 @@ async def schedule_hard_cap_deletion(container_id: str):
 
 @app.get("/api/create")
 @limiter.limit("5/minute")
-async def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id: str, site_limit: int = 5, delete_after: int = None):
+async def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id: str, site_limit: int = 5, delete_after: int = None, premium: str = None):
     """
     Spins up a new VM container for a developer, ensuring they don't exceed their site_limit.
 
     - delete_after: seconds of inactivity (idle CPU < 1%) before the VM is auto-deleted.
       Maximum allowed is MAX_INACTIVITY_MINUTES (default 5m).
     - All sessions are hard-capped at MAX_SESSION_MINUTES (default 60m) regardless of activity.
+    - premium: optional premium code. If provided and matches PREMIUM_CODE, the VM will never
+      be automatically deleted (premium VMs are only deleted via /api/delete).
     """
+    # Validate premium code if provided (supports multiple codes separated by commas)
+    is_premium = False
+    if premium:
+        valid_codes = [code.strip() for code in PREMIUM_CODE.split(",") if code.strip()]
+        if premium in valid_codes:
+            is_premium = True
+        else:
+            raise HTTPException(status_code=400, detail="Invalid premium code")
+
     # Enforce site_limit cap
     effective_site_limit = min(site_limit, MAX_VMS_PER_DEV)
     
@@ -177,6 +189,10 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
         effective_delete_after = max_inactivity_seconds
     else:
         effective_delete_after = delete_after
+
+    # Premium VMs should never auto-delete, set to 0 (infinity)
+    if is_premium:
+        effective_delete_after = 0
 
     if not client:
         raise HTTPException(status_code=500, detail="Docker client not initialized. Is Docker running?")
@@ -222,7 +238,7 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
                 ports={'3000/tcp': host_port},
                 shm_size="2gb",
                 security_opt=["seccomp=unconfined"],
-                labels={"developer_id": developer_id},
+                labels={"developer_id": developer_id, "premium": str(is_premium).lower()},
                 nano_cpus=int(allocated_cpus * 1e9),
                 mem_limit="8g"
             )
@@ -232,11 +248,12 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start container: {str(e)}")
 
-    # 4. Schedule deletion
-    if effective_delete_after > 0:
-        background_tasks.add_task(schedule_container_deletion, container.id, effective_delete_after)
-    else:
-        background_tasks.add_task(schedule_hard_cap_deletion, container.id)
+    # 4. Schedule deletion (skip for premium VMs - they only get deleted via /api/delete)
+    if not is_premium:
+        if effective_delete_after > 0:
+            background_tasks.add_task(schedule_container_deletion, container.id, effective_delete_after)
+        else:
+            background_tasks.add_task(schedule_hard_cap_deletion, container.id)
         
     # 5. Build dynamic return URL based on requested host
     server_hostname = request.url.hostname
@@ -247,9 +264,10 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
         "name": container.name,
         "port": host_port,
         "developer_id": developer_id,
-        "inactivity_timeout_seconds": effective_delete_after,
-        "max_session_minutes": MAX_SESSION_MINUTES,
-        "message": "VM created successfully.",
+        "inactivity_timeout_seconds": effective_delete_after if not is_premium else None,
+        "max_session_minutes": MAX_SESSION_MINUTES if not is_premium else None,
+        "premium": is_premium,
+        "message": "VM created successfully." + (" (premium - no auto-delete)" if is_premium else ""),
         "url": f"http://{server_hostname}:{host_port}"
     }
 
