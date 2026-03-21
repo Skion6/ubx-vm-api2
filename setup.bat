@@ -19,7 +19,7 @@ echo 3. Building Docker Image...
 docker build -t xcloud .
 if %errorlevel% neq 0 (
     echo.
-    echo ERROR: Docker build failed! Check the output above.
+    echo ERROR: Docker build failed! Check the output above. IS DOCKER RUNNING?
     pause
     exit /b %errorlevel%
 )
