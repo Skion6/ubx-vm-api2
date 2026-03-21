@@ -346,7 +346,7 @@ app.get('/api/vm/:containerId', async (req, res) => {
             <span class="vm-id-tag">${containerId.substring(0, 12)}</span>
         </div>
         <div class="controls">
-            <span class="inactivity-status">⚠️ Inactivity Protocol Active (${inactivityTimeoutSeconds}s)</span>
+            <span class="inactivity-status">⚠️ Inactivity Timeout (${inactivityTimeoutSeconds}s)</span>
             <div class="timer-box" id="timer">${maxSessionMinutes}:00</div>
         </div>
     </div>
