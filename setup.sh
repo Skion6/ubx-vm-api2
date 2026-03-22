@@ -17,7 +17,7 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 echo "2. Running Configuration Script..."
-python3 setup.py
+python3 setup.py "$@"
 
 echo "3. Building Docker Image..."
 docker build -t xcloud .

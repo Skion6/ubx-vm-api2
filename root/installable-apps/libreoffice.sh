@@ -1,4 +1,9 @@
 #!/bin/bash
 set -e
-apt update
-apt install -y libreoffice-writer libreoffice-math libreoffice-impress libreoffice-base
+echo "**** install discord ****"apt update
+apt install -y libatomic1
+
+wget "https://discord.com/api/download?platform=linux&format=deb" -O discord.deb
+dpkg -i discord.deb
+sleep 1
+rm discord.deb

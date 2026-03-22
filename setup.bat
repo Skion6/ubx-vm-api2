@@ -1,4 +1,7 @@
 @echo off
+setlocal EnableDelayedExpansion
+
+REM Parse command line arguments
 echo ==========================================
 echo     Xcloud - Setup Script      
 echo ==========================================
@@ -13,7 +16,7 @@ if %errorlevel% neq 0 (
 )
 
 echo 2. Running Configuration Script...
-python setup.py
+python setup.py %*
 
 echo 3. Building Docker Image...
 docker build -t xcloud .
