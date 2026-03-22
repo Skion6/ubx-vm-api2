@@ -48,6 +48,8 @@ COPY ./root/ /
 
 RUN \
   echo "**** running installapps.sh ****" && \
+  ls -la / && \
+  ls -la /root/ && \
   chmod +x /installapps.sh && \
   /installapps.sh && \
   rm /installapps.sh && \
