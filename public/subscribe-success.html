@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Successful - Xcloud</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg-color:#0a0a0d;--primary-color:#ff6b00;--success-color:#00c853;--text-main:#e1e1e6;--text-muted:#9494a3;--border-color:rgba(255,107,0,0.15);--glass-bg:rgba(22,22,30,0.7)}*{margin:0;padding:0;box-sizing:border-box}body{background-color:var(--bg-color);color:var(--text-main);font-family:'Outfit',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;background-image:radial-gradient(circle at 10% 20%,rgb(255 107 0 / .03) 0%,transparent 40%),radial-gradient(circle at 90% 80%,rgb(255 107 0 / .03) 0%,transparent 40%)}.container{max-width:600px;width:100%;text-align:center;animation:fadeIn 0.8s ease-out}@keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}.icon-wrapper{width:120px;height:120px;background:linear-gradient(135deg,rgba(0,200,83,0.2) 0%,rgba(0,200,83,0.05) 100%);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;border:2px solid rgba(0,200,83,0.3);animation:scaleIn 0.5s ease-out}@keyframes scaleIn{from{transform:scale(0)}to{transform:scale(1)}}.checkmark{stroke:#00c853;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:100;stroke-dashoffset:100;animation:drawCheck 0.5s ease-out 0.3s forwards}@keyframes drawCheck{to{stroke-dashoffset:0}}h1{font-size:2.5rem;font-weight:800;letter-spacing:-1px;margin-bottom:16px;background:linear-gradient(135deg,#fff 0%,#888 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:#fff0}.subtitle{color:var(--text-muted);font-size:1.1rem;margin-bottom:40px;line-height:1.6}.details{background:var(--glass-bg);border:1px solid var(--border-color);border-radius:20px;padding:24px;margin-bottom:40px;text-align:left}.details-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05)}.details-row:last-child{border-bottom:none}.details-label{font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px}.details-value{font-weight:600;color:var(--text-main)}.home-btn{background:var(--primary-color);color:#000;border:none;padding:16px 40px;font-size:1rem;font-weight:700;border-radius:14px;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);box-shadow:0 10px 30px rgb(255 107 0 / .2);text-decoration:none;display:inline-flex;align-items:center;gap:10px}.home-btn:hover{background:#e66000;transform:translateY(-2px);box-shadow:0 15px 40px rgb(255 107 0 / .3)}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon-wrapper"><svg viewBox="0 0 24 24" width="64" height="64"><path class="checkmark" d="M5 13l4 4L19 7"/></svg></div>
+        <h1>Subscription Activated!</h1>
+        <p class="subtitle">Thank you for subscribing. Your Xcloud+ is now active and ready to use. Check your email for more details.</p>
+        <div class="details">
+            <div class="details-row"><span class="details-label">Status</span><span class="details-value" style="color:var(--success-color)">Active</span></div>
+            <div class="details-row"><span class="details-label">Plan</span><span class="details-value">Xcloud+</span></div>
+            <div class="details-row"><span class="details-label">Start Date</span><span class="details-value" id="sd">-</span></div>
+            <div class="details-row"><span class="details-label">Expiration</span><span class="details-value" id="ex">-</span></div>
+        </div>
+    </div>
+    <script>const t=new Date;document.getElementById('sd').textContent=t.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});const e=new Date(t);e.setDate(e.getDate()+30);document.getElementById('ex').textContent=e.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Failed - Xcloud</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg-color:#0a0a0d;--primary-color:#ff6b00;--error-color:#ff5252;--text-main:#e1e1e6;--text-muted:#9494a3;--border-color:rgba(255,107,0,0.15);--glass-bg:rgba(22,22,30,0.7)}*{margin:0;padding:0;box-sizing:border-box}body{background-color:var(--bg-color);color:var(--text-main);font-family:'Outfit',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;background-image:radial-gradient(circle at 10% 20%,rgb(255 82 82 / .03) 0%,transparent 40%),radial-gradient(circle at 90% 80%,rgb(255 107 0 / .03) 0%,transparent 40%)}.container{max-width:600px;width:100%;text-align:center;animation:fadeIn 0.8s ease-out}@keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}.icon-wrapper{width:120px;height:120px;background:linear-gradient(135deg,rgba(255,82,82,0.2) 0%,rgba(255,82,82,0.05) 100%);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;border:2px solid rgba(255,82,82,0.3);animation:scaleIn 0.5s ease-out}@keyframes scaleIn{from{transform:scale(0)}to{transform:scale(1)}}.x-mark{stroke:#ff5252;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:50;stroke-dashoffset:50;animation:drawX 0.4s ease-out 0.3s forwards}@keyframes drawX{to{stroke-dashoffset:0}}h1{font-size:2.5rem;font-weight:800;letter-spacing:-1px;margin-bottom:16px;background:linear-gradient(135deg,#fff 0%,#888 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:#fff0}.subtitle{color:var(--text-muted);font-size:1.1rem;margin-bottom:32px;line-height:1.6}.error-details{background:var(--glass-bg);border:1px solid rgba(255,82,82,0.15);border-radius:20px;padding:24px;margin-bottom:40px;text-align:left}.error-message{color:var(--error-color);font-size:0.95rem;padding:16px;background:rgba(255,82,82,0.08);border-radius:12px;margin-bottom:8px;border-left:3px solid var(--error-color)}.help-text{color:var(--text-muted);font-size:0.9rem;line-height:1.6}.btn-group{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}.retry-btn{background:var(--primary-color);color:#000;border:none;padding:16px 40px;font-size:1rem;font-weight:700;border-radius:14px;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);box-shadow:0 10px 30px rgb(255 107 0 / .2);text-decoration:none;display:inline-flex;align-items:center;gap:10px}.retry-btn:hover{background:#e66000;transform:translateY(-2px);box-shadow:0 15px 40px rgb(255 107 0 / .3)}.home-btn{background:transparent;color:var(--text-main);border:1px solid rgba(255,255,255,0.15);padding:16px 32px;font-size:1rem;font-weight:600;border-radius:14px;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);text-decoration:none;display:inline-flex;align-items:center;gap:10px}.home-btn:hover{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.25)}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon-wrapper"><svg viewBox="0 0 24 24" width="64" height="64"><path class="x-mark" d="M18 6L6 18M6 6l12 12"/></svg></div>
+        <h1>Payment Failed</h1>
+        <p class="subtitle">Unfortunately, we couldn't process your payment. Please try again.</p>
+        <div class="error-details">
+            <div class="error-message" id="em">Your payment was declined. Please check your BTC details and try again.</div>
+            <p class="help-text">If the problem persists, please contact your payment provider or try a different address.</p>
+        </div>
+        <div class="btn-group">
+            <a href="/" class="retry-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Try Again</a>
+            <a href="/" class="home-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Go Home</a>
+        </div>
+    </div>
+    <script>const p=new URLSearchParams(window.location.search);if(p.get('e'))document.getElementById('em').textContent=decodeURIComponent(p.get('e'));</script>
+</body>
+</html>
