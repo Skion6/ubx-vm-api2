@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
-echo "**** install discord ****"apt update
-apt install -y libatomic1
+echo "**** install discord ****"
+apt-get update -y
+apt-get install -y libatomic1
 
 wget "https://discord.com/api/download?platform=linux&format=deb" -O discord.deb
 dpkg -i discord.deb

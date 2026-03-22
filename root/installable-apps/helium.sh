@@ -2,5 +2,5 @@
 set -e
 echo "**** install helium browser ****"
 # repurposed as wine prt 2
-apt update
-apt install winehq-stable -y
+apt-get update -y
+apt-get install -y winehq-stable

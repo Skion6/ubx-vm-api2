@@ -1,5 +1,5 @@
 #!/bin/bash
 set -e
-apt install -y synaptic
-apt update
-sudo apt update && sudo apt install kde-standard
+apt-get install -y synaptic
+apt-get update -y
+apt-get update -y && apt-get install -y kde-standard
