@@ -2,9 +2,10 @@
 
 ## Free Tier
 
-- Limited to **20 concurrent VMs** at a time
-- Each VM is limited to **120 minutes** of usage
-- If you exceed the 20 VM limit, you must wait until someone using your site stops using Xcloud before starting a new VM
+- Limited to **10 concurrent VMs** at a time
+- Each VM is limited to **60 minutes** of usage
+- If you exceed the 10 VM limit, you must wait until someone using your site stops using Xcloud before starting a new VM
+- VMs will be deleted after a minute of activity
 
 ## Xcloud+
 
