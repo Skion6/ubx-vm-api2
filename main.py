@@ -5,6 +5,8 @@ import asyncio
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Depends
 from fastapi.security import APIKeyQuery, APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -50,6 +52,13 @@ try:
 except Exception as e:
     print(f"Error initializing Docker client: {e}")
     client = None
+
+# Serve frontend static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+async def serve_frontend():
+    return FileResponse("static/index.html")
 
 def get_free_port() -> int:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
