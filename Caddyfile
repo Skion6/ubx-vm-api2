@@ -1,28 +1,45 @@
 {
+    # Your global email for Let's Encrypt notifications
     email eastondean195@gmail.com
+
+    # ON-DEMAND TLS CONFIGURATION
+    # This prevents your server from being "certificate-spammed."
+    # Caddy will call this endpoint before issuing a cert for a new domain.
+    on_demand_tls {
+        ask http://localhost:8000/api/health
+    }
 }
 
-# --- MAIN SECURE SERVER ---
-ec2-18-219-58-159.us-east-2.compute.amazonaws.com {
+# --- DYNAMIC MULTI-DOMAIN SERVER BLOCK ---
+# Using :443 allows Caddy to catch any domain pointing to this IP.
+:443 {
     encode gzip
 
-    # API Traffic — everything under /api/* goes to the FastAPI backend
+    # Enable the on-demand certificate logic
+    tls {
+        on_demand
+    }
+
+    # API Traffic — Route /api/* to your FastAPI backend
     handle /api/* {
         reverse_proxy localhost:8000 {
             lb_try_duration 5s
             lb_try_interval 250ms
             
+            # Health check on your backend
             health_uri /api/health
             health_interval 10s
             health_timeout 2s
         }
     }
 
-    # Default handler for anything else
+    # Default handler for root or frontend traffic
+    # You can change this to a reverse_proxy for a frontend (e.g., localhost:3000)
     handle {
-        respond "Not found" 404
+        respond "Welcome to the Dynamic Proxy. Domain: {host}" 200
     }
 
+    # Logging configuration
     log {
         output file /var/log/caddy/access.log
     }
