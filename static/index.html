@@ -111,7 +111,7 @@
     </div>
 
     <script>
-        const EC2_HOST = window.location.hostname;
+const EC2_HOST = window.location.hostname;
         
         // Navigation
         function nav(viewId) {
@@ -152,29 +152,12 @@
             }
         }
 
-        // Window Cloaking Logic
+        // Window Launch Logic (Modified to open normally in a new tab)
         function openCloaked(url) {
-            // Note: If mixed content blocks the iframe, window.open directly handles the HTTP fallback automatically.
-            let win = window.open('about:blank', '_blank');
+            let win = window.open(url, '_blank');
             if (!win) {
-                alert("Popup blocked! Redirecting directly...");
-                window.open(url, '_blank');
-                return;
+                alert("Popup blocked! Please allow popups for this site, or use the fallback button.");
             }
-            win.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Home - Classroom</title>
-                        <link rel="icon" type="image/png" href="https://ssl.gstatic.com/classroom/favicon.png">
-                    <style>body, html { margin: 0; padding: 0; height: 100vh; overflow: hidden; background: #fff; }</style>
-                </head>
-                <body>
-                    <iframe src="${url}" style="border:none; width:100%; height:100%;" allowfullscreen></iframe>
-                </body>
-                </html>
-            `);
-            win.document.close();
         }
 
         // Connect to Friend
@@ -208,10 +191,14 @@
                         openCloaked(data.url);
                         nav('view-post-launch');
                         
-                        let msg = "<strong>Important:</strong> New VMs may display random errors when they first start. Reload the frame if you see one.";
+                        let msg = "<strong>Important:</strong> New VMs may display random errors when they first start. Reload the new tab if you see one.";
                         if (!isPremium) {
                             msg += "<br><br><span style='color: #ff9f0a;'>Notice: Free VMs will be automatically deleted after 45 minutes or 60 seconds of inactivity.</span>";
                         }
+                        
+                        // Added Fallback Button Here
+                        msg += `<br><br><button class="vm-connect" onclick="window.open('${data.url}', '_blank')">Launch VM (Fallback)</button>`;
+                        
                         document.getElementById('post-launch-msg').innerHTML = msg;
                     }, 3000);
                 } else {
