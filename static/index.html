@@ -111,7 +111,10 @@
     </div>
 
     <script>
-const EC2_HOST = window.location.hostname + ':8000';
+// Ensure backend always uses port 8000 and build URLs consistently
+const EC2_PORT = '8000';
+const EC2_HOSTNAME = window.location.hostname;
+const EC2_BASE = (location.protocol === 'https:' ? 'https://' : 'http://') + EC2_HOSTNAME + ':' + EC2_PORT;
         
         // Navigation
         function nav(viewId) {
@@ -164,7 +167,8 @@ const EC2_HOST = window.location.hostname + ':8000';
         function joinFriend() {
             const port = document.getElementById('input-friend-code').value;
             if (!port) return alert('Please enter a friend code (port).');
-            openCloaked(`http://${EC2_HOST}:${port}/`);
+            const proto = (location.protocol === 'https:' ? 'https://' : 'http://');
+            openCloaked(`${proto}${EC2_HOSTNAME}:${port}/`);
         }
 
         // Create VM
@@ -176,7 +180,7 @@ const EC2_HOST = window.location.hostname + ':8000';
             document.getElementById('loading-text').innerText = "Connecting to remote servers...";
 
             try {
-                let apiUrl = `https://${EC2_HOST}/api/create?developer_id=loremgroupusllc&site_limit=999&delete_after=45`;
+                let apiUrl = (location.protocol === 'https:' ? 'https://' : 'http://') + EC2_HOSTNAME + ':' + EC2_PORT + '/api/create?developer_id=loremgroupusllc&site_limit=999&delete_after=45';
                 if (isPremium) apiUrl += `&premium=${encodeURIComponent(code)}`;
 
                 const response = await fetch(apiUrl);
