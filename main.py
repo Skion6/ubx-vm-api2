@@ -378,3 +378,13 @@ async def list_vms(request: Request, developer_id: str = None, authorized: bool 
         system_cpu = None
 
     return {"status": "success", "system_cpu": system_cpu, "vms": res}
+
+
+if __name__ == "__main__":
+    # Allow running the app directly with `python main.py` and bind to 0.0.0.0 by default.
+    import uvicorn
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    # Enable reload only if DEV_RELOAD=1 in the environment (useful for development).
+    reload_flag = os.getenv("DEV_RELOAD", "0") == "1"
+    uvicorn.run(app, host=host, port=port, reload=reload_flag)
