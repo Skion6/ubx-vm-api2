@@ -1,2 +1,0 @@
-THESE MAY BE OUTDATED!
-Try to use the code in /static

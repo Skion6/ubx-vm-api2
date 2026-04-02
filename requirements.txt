@@ -3,3 +3,6 @@ uvicorn==0.27.1
 docker==7.1.0
 slowapi==0.1.9
 python-dotenv==1.0.1
+httpx==0.24.1
+psutil==5.9.5
+websockets==11.0.3

@@ -2,6 +2,7 @@ import socket
 import uuid
 import docker
 import asyncio
+import httpx
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, Depends
 from fastapi.security import APIKeyQuery, APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,7 +43,10 @@ def verify_password(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Adjust this in production to specific domains if needed
-    allow_credentials=True,
+    # Wildcard origins with credentials=True can cause CORS checks to fail
+    # for WebSocket handshakes in some ASGI/CORS implementations. Use
+    # explicit origins or disable credentials for websocket proxying.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -264,9 +268,39 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
         else:
             background_tasks.add_task(schedule_hard_cap_deletion, container.id)
         
-    # 5. Build dynamic return URL based on requested host
+    # Wait for the container's service to accept connections before returning the URL
     server_hostname = request.url.hostname
-    
+
+    import time
+    # Increase the default startup timeout — some VMs take longer to fully initialize.
+    STARTUP_TIMEOUT = int(os.getenv("CONTAINER_STARTUP_TIMEOUT", "60"))
+    check_host = "127.0.0.1"
+    check_url = f"http://{check_host}:{host_port}/"
+    start_time = time.time()
+    ready = False
+
+    async with httpx.AsyncClient() as http_client:
+        while time.time() - start_time < STARTUP_TIMEOUT:
+            try:
+                resp = await http_client.get(check_url, timeout=5.0)
+                status = resp.status_code
+                if status == 200:
+                    ready = True
+                    break
+                if status == 502:
+                    # Backend or proxy returned Bad Gateway — wait 1s and retry
+                    await asyncio.sleep(1.0)
+                    continue
+                # Other non-200 statuses: wait briefly and retry
+                await asyncio.sleep(0.5)
+            except httpx.RequestError:
+                # service not yet reachable; wait and retry
+                await asyncio.sleep(0.5)
+
+    if not ready:
+        raise HTTPException(status_code=504, detail=f"Container started but service not returning 200 on port {host_port} within {STARTUP_TIMEOUT}s")
+
+    url = f"http://{server_hostname}:{host_port}"
     return {
         "status": "success",
         "container_id": container.id,
@@ -277,7 +311,7 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
         "max_session_minutes": MAX_SESSION_MINUTES if not is_premium else None,
         "premium": is_premium,
         "message": "VM created successfully." + (" (premium - no auto-delete)" if is_premium else ""),
-        "url": f"http://{server_hostname}:{host_port}"
+        "url": url
     }
 
 @app.get("/api/delete/{container_id}")
@@ -325,11 +359,22 @@ async def list_vms(request: Request, developer_id: str = None, authorized: bool 
     for c in containers:
         port_info = c.attrs['NetworkSettings']['Ports'].get('3000/tcp')
         host_port = port_info[0]['HostPort'] if port_info else None
+        premium = True if (c.labels and c.labels.get("premium", "false").lower() == "true") else False
         res.append({
             "id": c.id,
             "name": c.name,
             "status": c.status,
             "port": host_port,
-            "developer_id": c.labels.get("developer_id")
+            "developer_id": c.labels.get("developer_id"),
+            "premium": premium
         })
-    return {"status": "success", "vms": res}
+
+    # include system CPU if psutil available
+    system_cpu = None
+    try:
+        import psutil
+        system_cpu = psutil.cpu_percent(interval=0.5)
+    except Exception:
+        system_cpu = None
+
+    return {"status": "success", "system_cpu": system_cpu, "vms": res}

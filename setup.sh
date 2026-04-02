@@ -31,6 +31,33 @@ source venv/bin/activate
 echo "5. Installing Python Requirements..."
 pip install -r requirements.txt
 
+echo "6. Installing Caddy (if missing)..."
+if ! command -v caddy &> /dev/null; then
+    if command -v apt-get &> /dev/null; then
+        echo "Installing Caddy via apt (requires sudo)..."
+        sudo apt-get update
+        sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo apt-key add -
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+        sudo apt-get update
+        sudo apt-get install -y caddy
+    elif command -v brew &> /dev/null; then
+        echo "Installing Caddy via brew..."
+        brew install caddy
+    else
+        echo "Could not automatically install Caddy. Please install it manually and re-run this script."
+    fi
+else
+    echo "Caddy already installed"
+fi
+
+if [ -f "Caddyfile" ]; then
+    echo "Copying repository Caddyfile to /etc/caddy/Caddyfile (requires sudo)"
+    sudo cp Caddyfile /etc/caddy/Caddyfile || echo "Warning: failed to copy Caddyfile to /etc/caddy/Caddyfile"
+    echo "Reloading Caddy service (if available)"
+    sudo systemctl restart caddy || sudo service caddy restart || echo "Please restart Caddy manually"
+fi
+
 echo "=========================================="
 echo " Setup Complete! Starting API Server...   "
 echo " (Press CTRL+C to stop)                   "

@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background:#f2f2f2 }
+    .controls { display:flex; gap:8px; align-items:center }
+    .small { font-size:0.9em; color:#666 }
+    button { padding:6px 10px }
+  </style>
+</head>
+<body>
+  <h1>Admin Dashboard</h1>
+  <div class="controls">
+    <label>Admin password: <input id="pwd" type="password" /></label>
+    <button id="refresh">Refresh</button>
+    <span class="small">Use your admin password to authorize actions.</span>
+  </div>
+
+  <div id="system" style="margin-top:12px"></div>
+
+  <table id="vms">
+    <thead>
+      <tr><th>Short ID</th><th>Name</th><th>Status</th><th>Port</th><th>Premium</th><th>CPU %</th><th>Actions</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+async function load() {
+  const pwd = document.getElementById('pwd').value;
+  const headers = {};
+  if (pwd) headers['X-Admin-Password'] = pwd;
+  try {
+    const res = await fetch('/api/admin/containers', { headers });
+    if (!res.ok) {
+      const text = await res.text();
+      alert('Failed to fetch: ' + res.status + ' ' + text);
+      return;
+    }
+    const json = await res.json();
+    document.getElementById('system').innerText = json.system_cpu !== null ? 'System CPU: ' + json.system_cpu + '%' : '';
+    const tbody = document.querySelector('#vms tbody');
+    tbody.innerHTML = '';
+    for (const vm of json.vms) {
+      const tr = document.createElement('tr');
+      const short = vm.id ? vm.id.slice(0,12) : '';
+      tr.innerHTML = `
+        <td>${short}</td>
+        <td>${vm.name || ''}</td>
+        <td>${vm.status || ''}</td>
+        <td>${vm.port ? `<a href='/${vm.port}/' target='_blank'>/${vm.port}/</a>` : ''}</td>
+        <td>${vm.premium ? 'Yes' : 'No'}</td>
+        <td>${vm.cpu_percent !== null && vm.cpu_percent !== undefined ? vm.cpu_percent.toFixed(2) : ''}</td>
+        <td>
+          <button data-id='${vm.id}' class='stop'>Stop</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+    document.querySelectorAll('button.stop').forEach(b => b.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      if (!confirm('Stop container ' + id + '?')) return;
+      const pwd = document.getElementById('pwd').value;
+      const headers = {};
+      if (pwd) headers['X-Admin-Password'] = pwd;
+      const r = await fetch('/api/delete/' + id, { method: 'GET', headers });
+      if (!r.ok) {
+        alert('Failed to stop: ' + r.status + ' ' + await r.text());
+      }
+      await load();
+    }));
+  } catch (err) {
+    alert('Error: ' + err);
+  }
+}
+
+document.getElementById('refresh').addEventListener('click', load);
+window.addEventListener('load', load);
+</script>
+</body>
+</html>
