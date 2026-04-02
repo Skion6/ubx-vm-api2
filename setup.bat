@@ -56,4 +56,13 @@ echo  Setup Complete! Starting API Server...
 echo  (Press CTRL+C to stop)                   
 echo ==========================================
 
+REM Start the uvicorn API server on port 8000
+REM If SSL_CERTFILE and SSL_KEYFILE environment vars are set, run with TLS
+if defined SSL_CERTFILE (
+    if defined SSL_KEYFILE (
+        echo Starting Uvicorn with TLS (SSL_CERTFILE and SSL_KEYFILE detected)
+        python -m uvicorn main:app --host 0.0.0.0 --port 8000 --ssl-certfile %SSL_CERTFILE% --ssl-keyfile %SSL_KEYFILE%
+        goto :EOF
+    )
+)
 python -m uvicorn main:app --host 0.0.0.0 --port 8000

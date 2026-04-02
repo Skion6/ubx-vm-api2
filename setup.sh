@@ -64,4 +64,10 @@ echo " (Press CTRL+C to stop)                   "
 echo "=========================================="
 
 # Start the uvicorn API server on port 8000
-python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+# If `SSL_CERTFILE` and `SSL_KEYFILE` are set in the environment, run with TLS.
+if [ -n "${SSL_CERTFILE:-}" ] && [ -n "${SSL_KEYFILE:-}" ]; then
+    echo "Starting Uvicorn with TLS (SSL_CERTFILE and SSL_KEYFILE detected)"
+    python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --ssl-certfile "$SSL_CERTFILE" --ssl-keyfile "$SSL_KEYFILE"
+else
+    python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+fi

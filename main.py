@@ -387,4 +387,19 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     # Enable reload only if DEV_RELOAD=1 in the environment (useful for development).
     reload_flag = os.getenv("DEV_RELOAD", "0") == "1"
-    uvicorn.run(app, host=host, port=port, reload=reload_flag)
+    # Optional TLS/HTTPS support via environment variables:
+    # - SSL_CERTFILE: path to PEM cert (or fullchain)
+    # - SSL_KEYFILE: path to PEM key
+    # - SSL_KEYFILE_PASSWORD: optional password for key
+    ssl_cert = os.getenv("SSL_CERTFILE")
+    ssl_key = os.getenv("SSL_KEYFILE")
+    ssl_key_password = os.getenv("SSL_KEYFILE_PASSWORD")
+
+    uvicorn_kwargs = {"host": host, "port": port, "reload": reload_flag}
+    if ssl_cert and ssl_key:
+        uvicorn_kwargs["ssl_certfile"] = ssl_cert
+        uvicorn_kwargs["ssl_keyfile"] = ssl_key
+        if ssl_key_password:
+            uvicorn_kwargs["ssl_keyfile_password"] = ssl_key_password
+
+    uvicorn.run(app, **uvicorn_kwargs)
