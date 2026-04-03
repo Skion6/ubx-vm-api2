@@ -14,14 +14,14 @@ Likely causes
 - Protocol mismatch: TLS or PROXY-protocol bytes delivered to plain-HTTP listener.
 
 Files added to this repo to help
-- scripts/wg_fix.sh — set MTU on a wg interface and add TCPMSS clamp on the VPS.
-- scripts/tcp_logger.py — run on the Windows host (stop Uvicorn first) to print the raw bytes.
+- tools/wg_fix.sh — set MTU on a wg interface and add TCPMSS clamp on the VPS.
+- tools/tcp_logger.py — run on the Windows host (stop Uvicorn first) to print the raw bytes.
 
 Concise commands and steps
 
 On the VPS (run as root):
 
-sudo bash scripts/wg_fix.sh wg0 1280
+sudo bash tools/wg_fix.sh wg0 1280
 
 This sets MTU on the wg interface (if present) and adds the tcpmss clamp rule in the mangle table.
 
@@ -39,7 +39,7 @@ then restart the tunnel.
 
 2. Stop Uvicorn and run the TCP logger to inspect the first bytes that arrive:
 
-python scripts/tcp_logger.py 8000 0.0.0.0
+python tools/tcp_logger.py 8000 0.0.0.0
 
 3. Alternatively capture traffic with Wireshark or Windump on the WireGuard interface:
 

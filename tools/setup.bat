@@ -16,6 +16,8 @@ if !errorlevel! neq 0 (
 )
 
 echo 2. Running Configuration Script...
+echo Additional setup options available: --max-global-vms (-g) and --dev-whitelist (-w)
+echo Example: tools\setup.bat -g 20 -w "siteA,siteB" --non-interactive
 python setup.py %*
 
 echo 3. Building Docker Image...

@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-scripts/tcp_logger.py
+tools/tcp_logger.py
 
 Simple TCP listener that prints the raw bytes received (hex and printable).
 Use this on the Windows host (stop Uvicorn first) to inspect the exact bytes arriving
 from the VPS DNAT/tunnel.
 
 Usage:
-  python scripts/tcp_logger.py [port] [bind_addr]
+  python tools/tcp_logger.py [port] [bind_addr]
 
 Examples:
-  python scripts/tcp_logger.py 8000         # listen on 0.0.0.0:8000
-  python scripts/tcp_logger.py 8000 127.0.0.1
+  python tools/tcp_logger.py 8000         # listen on 0.0.0.0:8000
+  python tools/tcp_logger.py 8000 127.0.0.1
 
 """
 import socket

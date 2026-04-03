@@ -22,17 +22,17 @@ cd ubx-vm-api
 **Interactive Mode (default):**
 
 **Windows:**
-Double-click `setup.bat` or run:
+Double-click `tools/setup.bat` or run:
 
 ```cmd
-setup.bat
+tools\setup.bat
 ```
 
 **Linux/Mac:**
 
 ```bash
-chmod +x setup.sh
-./setup.sh
+chmod +x tools/setup.sh
+./tools/setup.sh
 ```
 
 **Non-interactive Mode (for nohup/automation):**
@@ -40,14 +40,15 @@ chmod +x setup.sh
 All command-line arguments are passed through to setup.py:
 
 ```bash
+
 # Using defaults
-./setup.sh --non-interactive
+./tools/setup.sh --non-interactive
 
 # With specific values
-./setup.sh -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
+./tools/setup.sh -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
 
 # Windows
-setup.bat -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
+tools\setup.bat -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
 ```
 
 **Command-line options:**
@@ -69,3 +70,36 @@ During the interactive setup process, you will be prompted for:
 - **Max Session Lifetime**: Absolute maximum session time regardless of activity.
 
 Once complete, the API will be live at `http://localhost:8000`.
+
+## Developer / Local Setup
+
+To run the service locally for development or debugging, create a Python virtual environment and install dependencies.
+
+Windows (PowerShell):
+
+```powershell
+python -m venv venv
+venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python setup.py
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Linux / macOS:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python setup.py
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+If you previously committed a `venv/` directory to the repository, remove it from version control and add it to `.gitignore`:
+
+```bash
+git rm -r --cached venv
+git commit -m "Remove committed virtualenv and ignore it"
+```

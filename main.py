@@ -57,12 +57,118 @@ except Exception as e:
     print(f"Error initializing Docker client: {e}")
     client = None
 
+# Global queue for VM creation requests when capacity is exhausted
+# Stores pending requests as dicts: {token, developer_id, effective_site_limit, effective_delete_after, is_premium, server_hostname, requested_at}
+from collections import deque
+import secrets
+vm_request_queue = deque()
+# Results mapping for tokens -> status/result
+vm_queue_results = {}
+# Lock guarding access to the queue/results
+vm_queue_lock = asyncio.Lock()
+# Maximum number of concurrent VMs allowed (global cap). Can be set via env.
+MAX_GLOBAL_VMS = int(os.getenv("MAX_GLOBAL_VMS", "10"))
+# Whitelist configuration: allow all developers by default, or restrict to a comma-separated list
+ALLOW_ALL_DEVELOPERS = os.getenv("ALLOW_ALL_DEVELOPERS", "1")
+ALLOW_ALL_DEVELOPERS_BOOL = str(ALLOW_ALL_DEVELOPERS).lower() in ("1", "true", "yes", "y")
+DEV_WHITELIST = os.getenv("DEV_WHITELIST", "")
+DEV_WHITELIST_SET = set([s.strip() for s in DEV_WHITELIST.split(",") if s.strip()]) if DEV_WHITELIST else set()
+
+def is_developer_allowed(dev_id: str) -> bool:
+    """Return True if the developer_id is permitted to create VMs."""
+    if ALLOW_ALL_DEVELOPERS_BOOL:
+        return True
+    return dev_id in DEV_WHITELIST_SET
+
 # Serve frontend static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 async def serve_frontend():
     return FileResponse("static/index.html")
+
+@app.get("/admin")
+async def serve_admin():
+    return FileResponse("static/admin/index.html")
+
+
+@app.get("/admin/")
+async def serve_admin_slash():
+    return FileResponse("static/admin/index.html")
+
+
+@app.get("/api/admin/containers")
+async def admin_containers(request: Request, authorized: bool = Depends(verify_password)):
+    """Admin endpoint returning container list and basic CPU stats."""
+    if not client:
+        raise HTTPException(status_code=500, detail="Docker client not initialized.")
+
+    def _list_all():
+        return client.containers.list(all=True)
+    containers = await asyncio.to_thread(_list_all)
+
+    res = []
+    for c in containers:
+        port_info = c.attrs.get('NetworkSettings', {}).get('Ports', {}).get('3000/tcp')
+        host_port = port_info[0]['HostPort'] if port_info else None
+        premium = True if (c.labels and c.labels.get("premium", "false").lower() == "true") else False
+        cpu_percent = None
+        try:
+            stats = c.stats(stream=False)
+            precpu = stats.get('precpu_stats') or {}
+            cpu_stats = stats.get('cpu_stats') or {}
+            cpu_delta = cpu_stats.get('cpu_usage', {}).get('total_usage', 0) - precpu.get('cpu_usage', {}).get('total_usage', 0)
+            sys_delta = cpu_stats.get('system_cpu_usage', 0) - precpu.get('system_cpu_usage', 0)
+            num_cpus = float(cpu_stats.get('online_cpus') or len(cpu_stats.get('cpu_usage', {}).get('percpu_usage') or [1]))
+            if sys_delta > 0 and cpu_delta > 0:
+                cpu_percent = (cpu_delta / sys_delta) * num_cpus * 100.0
+            else:
+                cpu_percent = 0.0
+        except Exception:
+            cpu_percent = None
+
+        res.append({
+            "id": c.id,
+            "name": c.name,
+            "status": c.status,
+            "port": host_port,
+            "developer_id": c.labels.get("developer_id") if c.labels else None,
+            "premium": premium,
+            "cpu_percent": cpu_percent
+        })
+
+    system_cpu = None
+    try:
+        import psutil
+        system_cpu = psutil.cpu_percent(interval=0.5)
+    except Exception:
+        system_cpu = None
+
+    return {"status": "success", "system_cpu": system_cpu, "vms": res}
+
+
+@app.get("/api/queue_status")
+async def queue_status(token: str):
+    """Check the status of a queued VM request by token."""
+    async with vm_queue_lock:
+        if token in vm_queue_results:
+            return vm_queue_results[token]
+        for idx, item in enumerate(vm_request_queue):
+            if item.get("token") == token:
+                return {"status": "queued", "position": idx + 1}
+    raise HTTPException(status_code=404, detail="Token not found")
+
+
+@app.get("/api/queue_cancel")
+async def queue_cancel(token: str):
+    """Cancel a queued VM request."""
+    async with vm_queue_lock:
+        for item in list(vm_request_queue):
+            if item.get("token") == token:
+                vm_request_queue.remove(item)
+                vm_queue_results[token] = {"status": "cancelled"}
+                return {"status": "success", "message": "Queued request cancelled"}
+    raise HTTPException(status_code=404, detail="Token not found")
 
 def get_free_port() -> int:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -101,6 +207,11 @@ async def _delete_container(container_id: str, reason: str):
             
     result = await asyncio.to_thread(_do_delete)
     print(result)
+    # After a container is removed, attempt to process any queued VM requests
+    try:
+        await process_queue()
+    except Exception as e:
+        print(f"Error processing VM queue after deletion: {e}")
 
 async def schedule_container_deletion(container_id: str, inactivity_seconds: int):
     """
@@ -172,6 +283,147 @@ async def schedule_hard_cap_deletion(container_id: str):
     await asyncio.sleep(MAX_SESSION_MINUTES * 60)
     await _delete_container(container_id, f"max session lifetime of {MAX_SESSION_MINUTES}m reached")
 
+
+async def count_running_vms():
+    """Return the number of currently running VMs created by this service."""
+    if not client:
+        return 0
+    def _list_running():
+        # default all=False -> only running containers
+        return client.containers.list(filters={"label": "developer_id"})
+    try:
+        containers = await asyncio.to_thread(_list_running)
+        return len(containers)
+    except Exception:
+        return 0
+
+
+async def _spawn_and_wait(developer_id: str, effective_delete_after: int, is_premium: bool, server_hostname: str, use_background_tasks: bool = False, background_tasks: BackgroundTasks = None):
+    """Spawn a container and wait for its service to be ready. Returns dict with container, host_port and url."""
+    import multiprocessing
+    total_cpus = float(multiprocessing.cpu_count())
+    allocated_cpus = min(4.0, total_cpus)
+
+    host_port = get_free_port()
+    container_name = f"vm-{developer_id}-{uuid.uuid4().hex[:8]}"
+
+    try:
+        def _run_container():
+            return client.containers.run(
+                "xcloud",
+                name=container_name,
+                detach=True,
+                environment={
+                    "PUID": "1000",
+                    "PGID": "1000",
+                    "TZ": "Etc/UTC",
+                    "SUBFOLDER": "/",
+                    "TITLE": "Home - Classroom"
+                },
+                ports={'3000/tcp': host_port},
+                shm_size="2gb",
+                security_opt=["seccomp=unconfined"],
+                labels={"developer_id": developer_id, "premium": str(is_premium).lower()},
+                nano_cpus=int(allocated_cpus * 1e9),
+                mem_limit="8g"
+            )
+        container = await asyncio.to_thread(_run_container)
+    except Exception as e:
+        raise
+
+    # Schedule deletion for non-premium VMs
+    if not is_premium:
+        if effective_delete_after > 0:
+            if use_background_tasks and background_tasks:
+                background_tasks.add_task(schedule_container_deletion, container.id, effective_delete_after)
+            else:
+                asyncio.create_task(schedule_container_deletion(container.id, effective_delete_after))
+        else:
+            if use_background_tasks and background_tasks:
+                background_tasks.add_task(schedule_hard_cap_deletion, container.id)
+            else:
+                asyncio.create_task(schedule_hard_cap_deletion(container.id))
+
+    # Wait for the container's service to accept connections
+    import time
+    STARTUP_TIMEOUT = int(os.getenv("CONTAINER_STARTUP_TIMEOUT", "60"))
+    check_host = "127.0.0.1"
+    check_url = f"http://{check_host}:{host_port}/"
+    start_time = time.time()
+    ready = False
+
+    async with httpx.AsyncClient() as http_client:
+        while time.time() - start_time < STARTUP_TIMEOUT:
+            try:
+                resp = await http_client.get(check_url, timeout=5.0)
+                status = resp.status_code
+                if status == 200:
+                    ready = True
+                    break
+                if status == 502:
+                    await asyncio.sleep(1.0)
+                    continue
+                await asyncio.sleep(0.5)
+            except httpx.RequestError:
+                await asyncio.sleep(0.5)
+
+    if not ready:
+        # cleanup container if service didn't become ready
+        try:
+            await asyncio.to_thread(lambda: client.containers.get(container.id).remove(force=True, v=True))
+        except Exception:
+            pass
+        raise Exception(f"Container started but service not ready on port {host_port} within {STARTUP_TIMEOUT}s")
+
+    url = f"http://{server_hostname}:{host_port}"
+    return {"container": container, "host_port": host_port, "url": url}
+
+
+async def process_queue():
+    """Attempt to allocate VMs for queued requests while capacity allows."""
+    async with vm_queue_lock:
+        # iterate while we have capacity and queued requests
+        while vm_request_queue:
+            current = await count_running_vms()
+            if current >= MAX_GLOBAL_VMS:
+                break
+            item = vm_request_queue.popleft()
+            token = item.get("token")
+            developer_id = item.get("developer_id")
+            effective_site_limit = item.get("effective_site_limit")
+            effective_delete_after = item.get("effective_delete_after")
+            is_premium = item.get("is_premium")
+            server_hostname = item.get("server_hostname")
+
+            # Check developer site limit before allocating
+            def _list_dev():
+                return client.containers.list(filters={"label": f"developer_id={developer_id}"})
+            try:
+                dev_containers = await asyncio.to_thread(_list_dev)
+            except Exception as e:
+                vm_queue_results[token] = {"status": "failed", "reason": f"Docker error listing developer containers: {e}"}
+                continue
+
+            if len(dev_containers) >= effective_site_limit:
+                vm_queue_results[token] = {"status": "failed", "reason": "site limit reached for developer when processing queue"}
+                continue
+
+            # Try to spawn and wait for the VM
+            try:
+                info = await _spawn_and_wait(developer_id, effective_delete_after, is_premium, server_hostname)
+                container = info["container"]
+                vm_queue_results[token] = {
+                    "status": "allocated",
+                    "container_id": container.id,
+                    "name": container.name,
+                    "port": info["host_port"],
+                    "url": info["url"],
+                    "message": "VM allocated from queue"
+                }
+            except Exception as e:
+                vm_queue_results[token] = {"status": "failed", "reason": str(e)}
+                continue
+
 @app.get("/api/create")
 @limiter.limit("5/minute")
 async def create_vm(request: Request, background_tasks: BackgroundTasks, developer_id: str, site_limit: int = 5, delete_after: int = None, premium: str = None):
@@ -184,6 +436,10 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
     - premium: optional premium code. If provided and matches PREMIUM_CODE, the VM will never
       be automatically deleted (premium VMs are only deleted via /api/delete).
     """
+    # Enforce developer whitelist first
+    if not is_developer_allowed(developer_id):
+        raise HTTPException(status_code=403, detail=f"Developer '{developer_id}' is not allowed to create VMs")
+
     # Validate premium code if provided (supports multiple codes separated by commas)
     is_premium = False
     if premium:
@@ -223,84 +479,35 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
     if len(containers) >= effective_site_limit:
         raise HTTPException(status_code=400, detail=f"Site limit of {effective_site_limit} VMs reached for developer '{developer_id}'")
     
-    # 2. Get a free port on the host
-    host_port = get_free_port()
-    
-    # 3. Start the container
-    container_name = f"vm-{developer_id}-{uuid.uuid4().hex[:8]}"
-    
-    import multiprocessing
-    # Get available system CPUs
-    total_cpus = float(multiprocessing.cpu_count())
-    # Cap at a maximum of 4 cores, but scale down if the server is low-end
-    allocated_cpus = min(4.0, total_cpus)
-    
+    # Check global capacity and enqueue if no free VM slots
+    server_hostname = request.url.hostname
+    current_running = await count_running_vms()
+    if current_running >= MAX_GLOBAL_VMS:
+        token = secrets.token_urlsafe(8)
+        queued_item = {
+            "token": token,
+            "developer_id": developer_id,
+            "effective_site_limit": effective_site_limit,
+            "effective_delete_after": effective_delete_after,
+            "is_premium": is_premium,
+            "server_hostname": server_hostname,
+            "requested_at": int(__import__('time').time())
+        }
+        async with vm_queue_lock:
+            vm_request_queue.append(queued_item)
+            position = len(vm_request_queue)
+            vm_queue_results[token] = {"status": "queued", "position": position}
+
+        return {"status": "queued", "token": token, "position": position, "message": "All free VMs currently in use; your request has been queued."}
+
+    # Start container and wait for it to be ready
     try:
-        def _run_container():
-            return client.containers.run(
-                "xcloud",
-                name=container_name,
-                detach=True,
-                environment={
-                    "PUID": "1000",
-                    "PGID": "1000",
-                    "TZ": "Etc/UTC",
-                    "SUBFOLDER": "/",
-                    "TITLE": "Home - Classroom"
-                },
-                ports={'3000/tcp': host_port},
-                shm_size="2gb",
-                security_opt=["seccomp=unconfined"],
-                labels={"developer_id": developer_id, "premium": str(is_premium).lower()},
-                nano_cpus=int(allocated_cpus * 1e9),
-                mem_limit="8g"
-            )
-        container = await asyncio.to_thread(_run_container)
-        print(f"Successfully started container {container.name} ({container.id})")
-        # change mem if u have shitty server
+        info = await _spawn_and_wait(developer_id, effective_delete_after, is_premium, server_hostname, use_background_tasks=True, background_tasks=background_tasks)
+        container = info["container"]
+        host_port = info["host_port"]
+        url = info["url"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start container: {str(e)}")
-
-    # 4. Schedule deletion (skip for premium VMs - they only get deleted via /api/delete)
-    if not is_premium:
-        if effective_delete_after > 0:
-            background_tasks.add_task(schedule_container_deletion, container.id, effective_delete_after)
-        else:
-            background_tasks.add_task(schedule_hard_cap_deletion, container.id)
-        
-    # Wait for the container's service to accept connections before returning the URL
-    server_hostname = request.url.hostname
-
-    import time
-    # Increase the default startup timeout — some VMs take longer to fully initialize.
-    STARTUP_TIMEOUT = int(os.getenv("CONTAINER_STARTUP_TIMEOUT", "60"))
-    check_host = "127.0.0.1"
-    check_url = f"http://{check_host}:{host_port}/"
-    start_time = time.time()
-    ready = False
-
-    async with httpx.AsyncClient() as http_client:
-        while time.time() - start_time < STARTUP_TIMEOUT:
-            try:
-                resp = await http_client.get(check_url, timeout=5.0)
-                status = resp.status_code
-                if status == 200:
-                    ready = True
-                    break
-                if status == 502:
-                    # Backend or proxy returned Bad Gateway — wait 1s and retry
-                    await asyncio.sleep(1.0)
-                    continue
-                # Other non-200 statuses: wait briefly and retry
-                await asyncio.sleep(0.5)
-            except httpx.RequestError:
-                # service not yet reachable; wait and retry
-                await asyncio.sleep(0.5)
-
-    if not ready:
-        raise HTTPException(status_code=504, detail=f"Container started but service not returning 200 on port {host_port} within {STARTUP_TIMEOUT}s")
-
-    url = f"http://{server_hostname}:{host_port}"
     return {
         "status": "success",
         "container_id": container.id,

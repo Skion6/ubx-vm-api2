@@ -1,3 +1,27 @@
 .jenkins-external
 __pycache__/
 *.pyc
+
+# Virtual environments
+venv/
+.venv/
+
+# Editor and OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Test / cache
+.pytest_cache/
+.mypy_cache/
+pip-wheel-metadata/
+
+# Environment files
+.env
+.env.*

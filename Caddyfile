@@ -1,36 +1,23 @@
 {
-    email eastondean195@gmail.com
+    # Replace this with your actual email
+    email your-email@example.com
 
-    # ON-DEMAND TLS CONFIGURATION
+    # This tells Caddy to check with your app before getting an SSL cert
     on_demand_tls {
-        # IMPORTANT: Make sure your FastAPI has this GET endpoint!
-        ask http://localhost:8000/api/health
+        ask http://10.0.0.2:8000/api/health
     }
 }
 
-# --- DYNAMIC MULTI-DOMAIN SERVER BLOCK ---
-:443 {
-    encode gzip
-
+# Catch-all for HTTP (80) and HTTPS (443)
+:80, :443 {
     tls {
         on_demand
     }
 
-    # 1. Route ALL traffic to your FastAPI backend (including the root /)
-    # This ensures your API and any frontend served by FastAPI works.
-    handle {
-        reverse_proxy localhost:8000 {
-            lb_try_duration 5s
-            lb_try_interval 250ms
-            
-            health_uri /api/health
-            health_interval 10s
-            health_timeout 2s
-        }
-    }
-
-    # 2. (Optional) Custom Logging
-    log {
-        output file /var/log/caddy/access.log
+    reverse_proxy 10.0.0.2:8000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
     }
 }

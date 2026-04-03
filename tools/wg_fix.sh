@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# scripts/wg_fix.sh
+# tools/wg_fix.sh
 # Help apply common WireGuard tunnel fixes for MTU and TCPMSS on the VPS.
-# Usage: sudo ./scripts/wg_fix.sh [wg-interface] [mtu]
+# Usage: sudo ./tools/wg_fix.sh [wg-interface] [mtu]
 
 WG_IF="${1:-wg0}"
 MTU="${2:-1280}"

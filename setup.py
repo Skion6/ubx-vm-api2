@@ -23,6 +23,8 @@ def main():
     parser.add_argument('--max-inactivity', '-i', type=int, help='Max Inactivity Time (minutes)')
     parser.add_argument('--max-session', '-s', type=int, help='Max Session Lifetime (minutes)')
     parser.add_argument('--premium-code', '-p', help='Premium Code(s), comma-separated')
+    parser.add_argument('--max-global-vms', '-g', type=int, help='Global max concurrent VMs (hard limit)')
+    parser.add_argument('--dev-whitelist', '-w', help='Comma-separated developer IDs to whitelist (disables allow-all)')
     parser.add_argument('--non-interactive', '-n', action='store_true', help='Use defaults without prompting')
     args = parser.parse_args()
 
@@ -70,11 +72,38 @@ def main():
         if not non_interactive else existing_config.get('PREMIUM_CODE', '')
     )
 
+    # Global hard cap for concurrent VMs across all developers
+    max_global_vms = args.max_global_vms if args.max_global_vms is not None else (
+        int(get_input(f"Enter Global max concurrent VMs (hard limit) [{existing_config.get('MAX_GLOBAL_VMS', '10')}]: ", existing_config.get('MAX_GLOBAL_VMS', '10')))
+        if not non_interactive else int(existing_config.get('MAX_GLOBAL_VMS', '10'))
+    )
+
+    # Whitelist behavior: by default allow all developers. If a whitelist is provided,
+    # restrict creation to those developer IDs.
+    dev_whitelist = ''
+    allow_all_developers = True
+    if args.dev_whitelist:
+        dev_whitelist = args.dev_whitelist
+        allow_all_developers = False
+    else:
+        if not non_interactive:
+            allow_input = get_input(f"Allow any developer to create VMs? [Y/n] [{ 'Y' if existing_config.get('ALLOW_ALL_DEVELOPERS', '1') in ('1','true','True') else 'n'}]: ", existing_config.get('ALLOW_ALL_DEVELOPERS', '1'))
+            if str(allow_input).lower() in ('n','no','0'):
+                allow_all_developers = False
+                dev_whitelist = get_input(f"Enter comma-separated developer IDs to allow [{existing_config.get('DEV_WHITELIST', '')}]: ", existing_config.get('DEV_WHITELIST',''))
+        else:
+            allow_all_developers = existing_config.get('ALLOW_ALL_DEVELOPERS', '1') in ('1','true','True')
+            dev_whitelist = existing_config.get('DEV_WHITELIST', '')
+
     with open(env_path, "w") as f:
         f.write(f"ADMIN_PASSWORD={admin_password}\n")
         f.write(f"MAX_VMS_PER_DEV={max_vms}\n")
+        f.write(f"MAX_GLOBAL_VMS={max_global_vms}\n")
         f.write(f"MAX_INACTIVITY_MINUTES={max_inactivity}\n")
         f.write(f"MAX_SESSION_MINUTES={max_session}\n")
+        f.write(f"ALLOW_ALL_DEVELOPERS={1 if allow_all_developers else 0}\n")
+        if dev_whitelist:
+            f.write(f"DEV_WHITELIST={dev_whitelist}\n")
         if premium_code:
             f.write(f"PREMIUM_CODE={premium_code}\n")
 

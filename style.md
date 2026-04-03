@@ -155,7 +155,7 @@ function handleRequest() {}
 
 ## File Organization
 
-- Python: `main.py`, `setup.py`, `verify_auth.py`
+- Python: `main.py`, `setup.py`, `tools/verify_auth.py`
 - Shell scripts: `root/installable-apps/*.sh`
 - Docker: `Dockerfile`, `Dockerfile.aarch64`
 - Wiki: `wiki/*.md`

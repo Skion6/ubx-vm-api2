@@ -30,19 +30,50 @@ To host this API, your server must have:
 Run the built-in setup script from your terminal:
 
 ```bash
-chmod +x setup.sh
-./setup.sh
+chmod +x tools/setup.sh
+./tools/setup.sh
 ```
 
 ### Windows
 
-Double click the `setup.bat` file, or run it in your terminal:
+Double click the `tools/setup.bat` file, or run it in your terminal:
 
 ```cmd
-setup.bat
+tools\setup.bat
 ```
 
 The script will automatically build the `xcloud` Docker template, install Python dependencies, and launch the API server on **Port 8000**.
+ 
+## 🧑‍💻 Developer / Local Setup
+
+Run the service locally for development or debugging.
+
+Windows (PowerShell):
+
+```powershell
+python -m venv venv
+venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python setup.py
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Linux / macOS:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python setup.py
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Notes:
+- `python setup.py` runs the repository configuration helper and writes a `.env` file with defaults.
+- Use `tools/setup.sh` or `tools/setup.bat` for the full production-oriented setup (builds the Docker image and configures the host).
+- If a `venv/` directory exists in your repository, it's recommended to remove it from version control (add to `.gitignore` then run `git rm -r --cached venv`) rather than committing it.
 
 ---
 
