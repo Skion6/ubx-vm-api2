@@ -17,8 +17,8 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 echo "2. Running Configuration Script..."
-echo "Note: new setup options available: --max-global-vms (-g) and --dev-whitelist (-w)"
-echo "Example: ./tools/setup.sh -g 20 -w \"siteA,siteB\" --non-interactive"
+echo "Note: new setup options available: --max-global-vms (-g), --dev-whitelist (-w), --max-free-vms, --max-premium-vms, --max-cpu-threads, --max-ram-gb"
+echo "Example: ./setup.sh -g 20 -w \"siteA,siteB\" --max-free-vms 15 --max-premium-vms 5 --max-cpu-threads 4 --max-ram-gb 8 --non-interactive"
 python3 setup.py "$@"
 
 echo "3. Building Docker Image..."

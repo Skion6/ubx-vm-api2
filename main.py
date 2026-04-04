@@ -27,6 +27,11 @@ MAX_VMS_PER_DEV = int(os.getenv("MAX_VMS_PER_DEV", "100"))
 MAX_INACTIVITY_MINUTES = int(os.getenv("MAX_INACTIVITY_MINUTES", "5"))
 MAX_SESSION_MINUTES = int(os.getenv("MAX_SESSION_MINUTES", "60"))
 PREMIUM_CODE = os.getenv("PREMIUM_CODE", "")
+MAX_FREE_VMS = int(os.getenv("MAX_FREE_VMS", "10"))
+MAX_PREMIUM_VMS = int(os.getenv("MAX_PREMIUM_VMS", "0"))
+MAX_CPU_THREADS = int(os.getenv("MAX_CPU_THREADS", "4"))
+MAX_RAM_GB = int(os.getenv("MAX_RAM_GB", "8"))
+HIGH_USAGE_THRESHOLD = 90
 
 api_key_query = APIKeyQuery(name="password", auto_error=False)
 api_key_header = APIKeyHeader(name="X-Admin-Password", auto_error=False)
@@ -138,13 +143,16 @@ async def admin_containers(request: Request, authorized: bool = Depends(verify_p
         })
 
     system_cpu = None
+    system_memory = None
     try:
         import psutil
         system_cpu = psutil.cpu_percent(interval=0.5)
+        system_memory = psutil.virtual_memory().percent
     except Exception:
         system_cpu = None
+        system_memory = None
 
-    return {"status": "success", "system_cpu": system_cpu, "vms": res}
+    return {"status": "success", "system_cpu": system_cpu, "system_memory": system_memory, "vms": res}
 
 
 @app.get("/api/queue_status")
@@ -298,14 +306,74 @@ async def count_running_vms():
         return 0
 
 
+async def count_free_vms():
+    """Return the number of currently running non-premium VMs."""
+    if not client:
+        return 0
+    def _list_running():
+        return client.containers.list(filters={"label": "developer_id"})
+    try:
+        containers = await asyncio.to_thread(_list_running)
+        return sum(1 for c in containers if c.labels.get("premium", "false").lower() != "true")
+    except Exception:
+        return 0
+
+
+async def count_premium_vms():
+    """Return the number of currently running premium VMs."""
+    if not client:
+        return 0
+    def _list_running():
+        return client.containers.list(filters={"label": "developer_id"})
+    try:
+        containers = await asyncio.to_thread(_list_running)
+        return sum(1 for c in containers if c.labels.get("premium", "false").lower() == "true")
+    except Exception:
+        return 0
+
+
+async def get_system_usage():
+    """Get system CPU and RAM usage percentages. Returns (cpu_percent, memory_percent)."""
+    cpu_percent = 0.0
+    memory_percent = 0.0
+    try:
+        import psutil
+        cpu_percent = psutil.cpu_percent(interval=0.5)
+        mem = psutil.virtual_memory()
+        memory_percent = mem.percent
+    except Exception:
+        pass
+    return cpu_percent, memory_percent
+
+
+async def delete_non_premium_vms(count: int):
+    """Delete up to 'count' non-premium VMs to free up resources."""
+    if not client:
+        return 0
+    def _list_all():
+        return client.containers.list(filters={"label": "developer_id"})
+    try:
+        containers = await asyncio.to_thread(_list_all)
+        non_premium = [c for c in containers if c.labels.get("premium", "false").lower() != "true"]
+        deleted = 0
+        for c in non_premium[:count]:
+            await _delete_container(c.id, "high server resource usage")
+            deleted += 1
+        return deleted
+    except Exception as e:
+        print(f"Error deleting non-premium VMs: {e}")
+        return 0
+
+
 async def _spawn_and_wait(developer_id: str, effective_delete_after: int, is_premium: bool, server_hostname: str, use_background_tasks: bool = False, background_tasks: BackgroundTasks = None):
     """Spawn a container and wait for its service to be ready. Returns dict with container, host_port and url."""
     import multiprocessing
     total_cpus = float(multiprocessing.cpu_count())
-    allocated_cpus = min(4.0, total_cpus)
+    allocated_cpus = min(float(MAX_CPU_THREADS), total_cpus)
 
     host_port = get_free_port()
     container_name = f"vm-{developer_id}-{uuid.uuid4().hex[:8]}"
+    ram_limit = f"{MAX_RAM_GB}g"
 
     try:
         def _run_container():
@@ -325,7 +393,7 @@ async def _spawn_and_wait(developer_id: str, effective_delete_after: int, is_pre
                 security_opt=["seccomp=unconfined"],
                 labels={"developer_id": developer_id, "premium": str(is_premium).lower()},
                 nano_cpus=int(allocated_cpus * 1e9),
-                mem_limit="8g"
+                mem_limit=ram_limit
             )
         container = await asyncio.to_thread(_run_container)
     except Exception as e:
@@ -384,9 +452,6 @@ async def process_queue():
     async with vm_queue_lock:
         # iterate while we have capacity and queued requests
         while vm_request_queue:
-            current = await count_running_vms()
-            if current >= MAX_GLOBAL_VMS:
-                break
             item = vm_request_queue.popleft()
             token = item.get("token")
             developer_id = item.get("developer_id")
@@ -394,6 +459,25 @@ async def process_queue():
             effective_delete_after = item.get("effective_delete_after")
             is_premium = item.get("is_premium")
             server_hostname = item.get("server_hostname")
+            queue_type = item.get("type", "global_limit")
+
+            # Check capacity based on queue type
+            if queue_type == "free_limit":
+                current_free = await count_free_vms()
+                if current_free >= MAX_FREE_VMS:
+                    vm_request_queue.appendleft(item)  # Put back at front
+                    break
+            elif queue_type == "premium_limit":
+                if MAX_PREMIUM_VMS > 0:
+                    current_premium = await count_premium_vms()
+                    if current_premium >= MAX_PREMIUM_VMS:
+                        vm_request_queue.appendleft(item)
+                        break
+            else:
+                current = await count_running_vms()
+                if current >= MAX_GLOBAL_VMS:
+                    vm_request_queue.appendleft(item)
+                    break
 
             # Check developer site limit before allocating
             def _list_dev():
@@ -479,8 +563,62 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
     if len(containers) >= effective_site_limit:
         raise HTTPException(status_code=400, detail=f"Site limit of {effective_site_limit} VMs reached for developer '{developer_id}'")
     
-    # Check global capacity and enqueue if no free VM slots
+    # Check system resource usage and delete non-premium VMs if critical
+    cpu_percent, memory_percent = await get_system_usage()
+    if cpu_percent >= HIGH_USAGE_THRESHOLD or memory_percent >= HIGH_USAGE_THRESHOLD:
+        print(f"High system usage detected: CPU {cpu_percent:.1f}%, RAM {memory_percent:.1f}%. Attempting to free resources by deleting non-premium VMs.")
+        deleted = await delete_non_premium_vms(3)
+        if deleted > 0:
+            print(f"Deleted {deleted} non-premium VMs due to high resource usage")
+            cpu_percent, memory_percent = await get_system_usage()
+            if cpu_percent >= HIGH_USAGE_THRESHOLD or memory_percent >= HIGH_USAGE_THRESHOLD:
+                deleted2 = await delete_non_premium_vms(5)
+                print(f"Deleted additional {deleted2} non-premium VMs")
+
+    # Check capacity limits based on VM type (free vs premium)
     server_hostname = request.url.hostname
+    
+    if is_premium:
+        # Check premium VM limit (0 means unlimited)
+        if MAX_PREMIUM_VMS > 0:
+            current_premium = await count_premium_vms()
+            if current_premium >= MAX_PREMIUM_VMS:
+                token = secrets.token_urlsafe(8)
+                queued_item = {
+                    "token": token,
+                    "developer_id": developer_id,
+                    "effective_site_limit": effective_site_limit,
+                    "effective_delete_after": effective_delete_after,
+                    "is_premium": is_premium,
+                    "server_hostname": server_hostname,
+                    "requested_at": int(__import__('time').time())
+                }
+                async with vm_queue_lock:
+                    vm_request_queue.append(queued_item)
+                    position = len(vm_request_queue)
+                    vm_queue_results[token] = {"status": "queued", "position": position, "type": "premium_limit"}
+                return {"status": "queued", "token": token, "position": position, "message": "Premium VM limit reached; your request has been queued."}
+    else:
+        # Check free VM limit
+        current_free = await count_free_vms()
+        if current_free >= MAX_FREE_VMS:
+            token = secrets.token_urlsafe(8)
+            queued_item = {
+                "token": token,
+                "developer_id": developer_id,
+                "effective_site_limit": effective_site_limit,
+                "effective_delete_after": effective_delete_after,
+                "is_premium": is_premium,
+                "server_hostname": server_hostname,
+                "requested_at": int(__import__('time').time())
+            }
+            async with vm_queue_lock:
+                vm_request_queue.append(queued_item)
+                position = len(vm_request_queue)
+                vm_queue_results[token] = {"status": "queued", "position": position, "type": "free_limit"}
+            return {"status": "queued", "token": token, "position": position, "message": "Free VM limit reached; your request has been queued."}
+    
+    # Also check global VM limit as hard cap
     current_running = await count_running_vms()
     if current_running >= MAX_GLOBAL_VMS:
         token = secrets.token_urlsafe(8)
@@ -496,9 +634,9 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
         async with vm_queue_lock:
             vm_request_queue.append(queued_item)
             position = len(vm_request_queue)
-            vm_queue_results[token] = {"status": "queued", "position": position}
+            vm_queue_results[token] = {"status": "queued", "position": position, "type": "global_limit"}
 
-        return {"status": "queued", "token": token, "position": position, "message": "All free VMs currently in use; your request has been queued."}
+        return {"status": "queued", "token": token, "position": position, "message": "All VMs currently in use; your request has been queued."}
 
     # Start container and wait for it to be ready
     try:

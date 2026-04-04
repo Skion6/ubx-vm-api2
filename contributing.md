@@ -15,7 +15,7 @@ Thank you for your interest in contributing! This project provides an API for ma
 ## Development Setup
 
 1.  Ensure Docker is installed and running.
-2.  Run `tools/setup.sh` (Linux) or `tools/setup.bat` (Windows) to initialize the environment.
+2.  Run `/setup.sh` (Linux) or `/setup.bat` (Windows) to initialize the environment.
 3.  The API runs by default on port 8000.
 4.  Docker containers for VMs use the `xcloud` image.
 

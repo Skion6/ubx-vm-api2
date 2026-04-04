@@ -25,6 +25,10 @@ def main():
     parser.add_argument('--premium-code', '-p', help='Premium Code(s), comma-separated')
     parser.add_argument('--max-global-vms', '-g', type=int, help='Global max concurrent VMs (hard limit)')
     parser.add_argument('--dev-whitelist', '-w', help='Comma-separated developer IDs to whitelist (disables allow-all)')
+    parser.add_argument('--max-free-vms', type=int, help='Maximum concurrent free VMs (premium VMs do not count towards this limit)')
+    parser.add_argument('--max-premium-vms', type=int, help='Maximum concurrent premium VMs (0 = unlimited)')
+    parser.add_argument('--max-cpu-threads', type=int, help='Maximum CPU threads (cores) per VM instance')
+    parser.add_argument('--max-ram-gb', type=int, help='Maximum RAM (GB) per VM instance')
     parser.add_argument('--non-interactive', '-n', action='store_true', help='Use defaults without prompting')
     args = parser.parse_args()
 
@@ -95,6 +99,27 @@ def main():
             allow_all_developers = existing_config.get('ALLOW_ALL_DEVELOPERS', '1') in ('1','true','True')
             dev_whitelist = existing_config.get('DEV_WHITELIST', '')
 
+    # New options for VM limits and resource caps
+    max_free_vms = args.max_free_vms if args.max_free_vms is not None else (
+        int(get_input(f"Enter Max Free VMs (premium excluded) [{existing_config.get('MAX_FREE_VMS', '10')}]: ", existing_config.get('MAX_FREE_VMS', '10')))
+        if not non_interactive else int(existing_config.get('MAX_FREE_VMS', '10'))
+    )
+
+    max_premium_vms = args.max_premium_vms if args.max_premium_vms is not None else (
+        int(get_input(f"Enter Max Premium VMs (0=unlimited) [{existing_config.get('MAX_PREMIUM_VMS', '0')}]: ", existing_config.get('MAX_PREMIUM_VMS', '0')))
+        if not non_interactive else int(existing_config.get('MAX_PREMIUM_VMS', '0'))
+    )
+
+    max_cpu_threads = args.max_cpu_threads if args.max_cpu_threads is not None else (
+        int(get_input(f"Enter Max CPU Threads per VM [{existing_config.get('MAX_CPU_THREADS', '4')}]: ", existing_config.get('MAX_CPU_THREADS', '4')))
+        if not non_interactive else int(existing_config.get('MAX_CPU_THREADS', '4'))
+    )
+
+    max_ram_gb = args.max_ram_gb if args.max_ram_gb is not None else (
+        int(get_input(f"Enter Max RAM (GB) per VM [{existing_config.get('MAX_RAM_GB', '8')}]: ", existing_config.get('MAX_RAM_GB', '8')))
+        if not non_interactive else int(existing_config.get('MAX_RAM_GB', '8'))
+    )
+
     with open(env_path, "w") as f:
         f.write(f"ADMIN_PASSWORD={admin_password}\n")
         f.write(f"MAX_VMS_PER_DEV={max_vms}\n")
@@ -106,6 +131,10 @@ def main():
             f.write(f"DEV_WHITELIST={dev_whitelist}\n")
         if premium_code:
             f.write(f"PREMIUM_CODE={premium_code}\n")
+        f.write(f"MAX_FREE_VMS={max_free_vms}\n")
+        f.write(f"MAX_PREMIUM_VMS={max_premium_vms}\n")
+        f.write(f"MAX_CPU_THREADS={max_cpu_threads}\n")
+        f.write(f"MAX_RAM_GB={max_ram_gb}\n")
 
     print(f"\nConfiguration saved to {env_path}")
     print("==========================================\n")

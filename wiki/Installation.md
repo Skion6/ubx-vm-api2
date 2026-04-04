@@ -22,7 +22,7 @@ cd ubx-vm-api
 **Interactive Mode (default):**
 
 **Windows:**
-Double-click `tools/setup.bat` or run:
+Double-click `/setup.bat` or run:
 
 ```cmd
 tools\setup.bat
@@ -31,8 +31,8 @@ tools\setup.bat
 **Linux/Mac:**
 
 ```bash
-chmod +x tools/setup.sh
-./tools/setup.sh
+chmod +x /setup.sh
+.//setup.sh
 ```
 
 **Non-interactive Mode (for nohup/automation):**
@@ -42,10 +42,10 @@ All command-line arguments are passed through to setup.py:
 ```bash
 
 # Using defaults
-./tools/setup.sh --non-interactive
+.//setup.sh --non-interactive
 
 # With specific values
-./tools/setup.sh -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
+.//setup.sh -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
 
 # Windows
 tools\setup.bat -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
@@ -70,6 +70,14 @@ During the interactive setup process, you will be prompted for:
 - **Max Session Lifetime**: Absolute maximum session time regardless of activity.
 
 Once complete, the API will be live at `http://localhost:8000`.
+
+### 4. Pull the Xcloud Docker Image
+
+Before creating VMs, pull the required Docker image:
+
+```bash
+docker pull xcloud
+```
 
 ## Developer / Local Setup
 
@@ -103,3 +111,63 @@ If you previously committed a `venv/` directory to the repository, remove it fro
 git rm -r --cached venv
 git commit -m "Remove committed virtualenv and ignore it"
 ```
+
+## Running in Production
+
+### Using the setup script with nohup
+
+```bash
+# Linux/Mac
+nohup python setup.py --non-interactive &
+
+# Windows
+start /b python setup.py --non-interactive
+```
+
+### Using systemd (Linux)
+
+Create a service file at `/etc/systemd/system/xcloud.service`:
+
+```ini
+[Unit]
+Description=Xcloud VM Management API
+After=network.target docker.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/path/to/ubx-vm-api
+ExecStart=/path/to/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable xcloud
+sudo systemctl start xcloud
+```
+
+### TLS/HTTPS Setup
+
+Set environment variables in your `.env` file:
+
+```
+SSL_CERTFILE=/path/to/cert.pem
+SSL_KEYFILE=/path/to/key.pem
+# Optional: SSL_KEYFILE_PASSWORD=your_password
+```
+
+## New Features
+
+- **Queue System**: When global VM capacity is reached, requests are queued automatically
+- **Premium Codes**: Create VMs that never auto-delete
+- **Developer Whitelist**: Restrict VM creation to specific developer IDs
+- **Admin Panel**: Access `/admin` for a web-based management interface
+- **Rate Limiting**: Built-in rate limits prevent abuse
+- **Resource Monitoring**: Real-time CPU stats for all containers

@@ -30,13 +30,13 @@ To host this API, your server must have:
 Run the built-in setup script from your terminal:
 
 ```bash
-chmod +x tools/setup.sh
-./tools/setup.sh
+chmod +x /setup.sh
+.//setup.sh
 ```
 
 ### Windows
 
-Double click the `tools/setup.bat` file, or run it in your terminal:
+Double click the `/setup.bat` file, or run it in your terminal:
 
 ```cmd
 tools\setup.bat
@@ -72,7 +72,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 Notes:
 - `python setup.py` runs the repository configuration helper and writes a `.env` file with defaults.
-- Use `tools/setup.sh` or `tools/setup.bat` for the full production-oriented setup (builds the Docker image and configures the host).
+- Use `/setup.sh` or `/setup.bat` for the full production-oriented setup (builds the Docker image and configures the host).
 - If a `venv/` directory exists in your repository, it's recommended to remove it from version control (add to `.gitignore` then run `git rm -r --cached venv`) rather than committing it.
 
 ---
