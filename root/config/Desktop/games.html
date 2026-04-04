@@ -1,8 +1,10 @@
 <!doctype html>
 <html lang="en">
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Xplay</title>
+</head>
 <style>
     :root {
         --brand-orange: #ff9900;
@@ -19,7 +21,7 @@
         --text-muted: #8b8b93;
         --radius: 12px;
         --shadow-glow: 0 0 20px rgba(255, 94, 0, 0.2);
-        --warning-red: #cc0000
+        --warning-red: #cc0000;
     }
 
     body {
@@ -421,7 +423,7 @@
 <div id="zoneViewer">
     <div class="zone-header">
         <h2 id="viewName" style="margin:0;font-size:1.1rem"></h2>
-        <div><button style="display:none" class="btn-secondary" onclick="downloadCurrent()" style="background:#222">Download</button><button class="btn-secondary" onclick="openCurrentInNewTab()" style="background:var(--primary);border-color:var(--primary)">Open in New Tab</button><button class="btn-secondary" onclick="toggleFullscreen()">Fullscreen</button><button class="btn-secondary" onclick="closeZone()" style="background:var(--warning-red)">Close</button></div>
+        <div><button class="btn-secondary" onclick="downloadCurrent()" style="display:none;background:#222">Download</button><button class="btn-secondary" onclick="openCurrentInNewTab()" style="background:var(--primary);border-color:var(--primary)">Open in New Tab</button><button class="btn-secondary" onclick="toggleFullscreen()">Fullscreen</button><button class="btn-secondary" onclick="closeZone()" style="background:var(--warning-red)">Close</button></div>
     </div><iframe id="zoneFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
 </div>
 <script>
@@ -459,11 +461,11 @@
                     displayCover: (l.cover || "").replace("{COVER_URL}", "https://cdn.jsdelivr.net/gh/gn-math/covers@main"),
                     featured: !1
                 })),
-                a = LOCAL_GAMES.map(l => (l.category && c.add(l.category.toLowerCase()), {
+                a = LOCAL_GAMES.map(l => (l.category && c.add(l.category.toLowerCase()), c.add("ubx"), {
                     id: "local_" + l.name.replace(/\s+/g, ""),
                     name: l.name,
                     source: "UBX",
-                    special: l.category ? [l.category.toLowerCase()] : [],
+                    special: l.category ? [l.category.toLowerCase(), "ubx"] : ["ubx"],
                     displayUrl: l.url,
                     displayCover: l.img_url || "/logo.png",
                     featured: !0 === l.featured
@@ -494,7 +496,7 @@
     function renderFeaturedBanner() {
         const l = document.getElementById("featuredBannerContainer"),
             c = allItems.find(l => !0 === l.featured);
-        c ? (l.innerHTML = ` <section class="hero-section"><div class="hero-image"><img src="${c.displayCover}" alt="${c.name}" onerror="this.src='/logo.png'"></div><div class="hero-content"><h2>${c.name}</h2><p>you can use the old store while we make the new one better.</p><button id="featuredPlayBtn" class="btn-primary">Go</button></div></section> `, document.getElementById("featuredPlayBtn").onclick = () => openZone(c), l.style.display = "flex") : l.style.display = "none"
+        c ? (l.innerHTML = ` <section class="hero-section"><div class="hero-image"><img src="${c.displayCover}" alt="${c.name}" onerror="this.src='/logo.png'"></div><div class="hero-content"><h2>${c.name}</h2><p>I LUV BOBOX.</p><button id="featuredPlayBtn" class="btn-primary">Go</button></div></section> `, document.getElementById("featuredPlayBtn").onclick = () => openZone(c), l.style.display = "flex") : l.style.display = "none"
     }
 
     function toggleFav(l, c) {
