@@ -29,6 +29,7 @@ MAX_SESSION_MINUTES = int(os.getenv("MAX_SESSION_MINUTES", "60"))
 PREMIUM_CODE = os.getenv("PREMIUM_CODE", "")
 MAX_FREE_VMS = int(os.getenv("MAX_FREE_VMS", "10"))
 MAX_PREMIUM_VMS = int(os.getenv("MAX_PREMIUM_VMS", "0"))
+MAX_PREMIUM_VMS_PER_CODE = int(os.getenv("MAX_PREMIUM_VMS_PER_CODE", "1"))
 MAX_CPU_THREADS = int(os.getenv("MAX_CPU_THREADS", "4"))
 MAX_RAM_GB = int(os.getenv("MAX_RAM_GB", "8"))
 HIGH_USAGE_THRESHOLD = 90
@@ -332,6 +333,19 @@ async def count_premium_vms():
         return 0
 
 
+async def count_premium_vms_by_code(premium_code: str):
+    """Return the number of currently running premium VMs for a specific code."""
+    if not client:
+        return 0
+    def _list_running():
+        return client.containers.list(filters={"label": "developer_id"})
+    try:
+        containers = await asyncio.to_thread(_list_running)
+        return sum(1 for c in containers if c.labels.get("premium", "false").lower() == "true" and c.labels.get("premium_code", "") == premium_code)
+    except Exception:
+        return 0
+
+
 async def get_system_usage():
     """Get system CPU and RAM usage percentages. Returns (cpu_percent, memory_percent)."""
     cpu_percent = 0.0
@@ -365,7 +379,7 @@ async def delete_non_premium_vms(count: int):
         return 0
 
 
-async def _spawn_and_wait(developer_id: str, effective_delete_after: int, is_premium: bool, server_hostname: str, use_background_tasks: bool = False, background_tasks: BackgroundTasks = None):
+async def _spawn_and_wait(developer_id: str, effective_delete_after: int, is_premium: bool, server_hostname: str, use_background_tasks: bool = False, background_tasks: BackgroundTasks = None, premium_code: str = None):
     """Spawn a container and wait for its service to be ready. Returns dict with container, host_port and url."""
     import multiprocessing
     total_cpus = float(multiprocessing.cpu_count())
@@ -391,7 +405,7 @@ async def _spawn_and_wait(developer_id: str, effective_delete_after: int, is_pre
                 ports={'3000/tcp': host_port},
                 shm_size="2gb",
                 security_opt=["seccomp=unconfined"],
-                labels={"developer_id": developer_id, "premium": str(is_premium).lower()},
+                labels={"developer_id": developer_id, "premium": str(is_premium).lower(), "premium_code": premium_code if premium_code else ""},
                 nano_cpus=int(allocated_cpus * 1e9),
                 mem_limit=ram_limit
             )
@@ -459,6 +473,7 @@ async def process_queue():
             effective_delete_after = item.get("effective_delete_after")
             is_premium = item.get("is_premium")
             server_hostname = item.get("server_hostname")
+            premium_code = item.get("premium_code")
             queue_type = item.get("type", "global_limit")
 
             # Check capacity based on queue type
@@ -468,6 +483,12 @@ async def process_queue():
                     vm_request_queue.appendleft(item)  # Put back at front
                     break
             elif queue_type == "premium_limit":
+                # Check per-code limit for premium VMs
+                if premium_code and MAX_PREMIUM_VMS_PER_CODE > 0:
+                    current_premium_by_code = await count_premium_vms_by_code(premium_code)
+                    if current_premium_by_code >= MAX_PREMIUM_VMS_PER_CODE:
+                        vm_queue_results[token] = {"status": "failed", "reason": f"Premium code limit of {MAX_PREMIUM_VMS_PER_CODE} VMs reached for code '{premium_code}'"}
+                        continue
                 if MAX_PREMIUM_VMS > 0:
                     current_premium = await count_premium_vms()
                     if current_premium >= MAX_PREMIUM_VMS:
@@ -494,7 +515,7 @@ async def process_queue():
 
             # Try to spawn and wait for the VM
             try:
-                info = await _spawn_and_wait(developer_id, effective_delete_after, is_premium, server_hostname)
+                info = await _spawn_and_wait(developer_id, effective_delete_after, is_premium, server_hostname, premium_code=premium_code)
                 container = info["container"]
                 vm_queue_results[token] = {
                     "status": "allocated",
@@ -579,6 +600,12 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
     server_hostname = request.url.hostname
     
     if is_premium:
+        # Check premium code per-code limit
+        if MAX_PREMIUM_VMS_PER_CODE > 0:
+            current_premium_by_code = await count_premium_vms_by_code(premium)
+            if current_premium_by_code >= MAX_PREMIUM_VMS_PER_CODE:
+                raise HTTPException(status_code=400, detail=f"Premium code limit of {MAX_PREMIUM_VMS_PER_CODE} VMs reached for code '{premium}'")
+        
         # Check premium VM limit (0 means unlimited)
         if MAX_PREMIUM_VMS > 0:
             current_premium = await count_premium_vms()
@@ -591,6 +618,7 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
                     "effective_delete_after": effective_delete_after,
                     "is_premium": is_premium,
                     "server_hostname": server_hostname,
+                    "premium_code": premium,
                     "requested_at": int(__import__('time').time())
                 }
                 async with vm_queue_lock:
@@ -610,6 +638,7 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
                 "effective_delete_after": effective_delete_after,
                 "is_premium": is_premium,
                 "server_hostname": server_hostname,
+                "premium_code": premium,
                 "requested_at": int(__import__('time').time())
             }
             async with vm_queue_lock:
@@ -629,6 +658,7 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
             "effective_delete_after": effective_delete_after,
             "is_premium": is_premium,
             "server_hostname": server_hostname,
+            "premium_code": premium,
             "requested_at": int(__import__('time').time())
         }
         async with vm_queue_lock:
@@ -640,7 +670,7 @@ async def create_vm(request: Request, background_tasks: BackgroundTasks, develop
 
     # Start container and wait for it to be ready
     try:
-        info = await _spawn_and_wait(developer_id, effective_delete_after, is_premium, server_hostname, use_background_tasks=True, background_tasks=background_tasks)
+        info = await _spawn_and_wait(developer_id, effective_delete_after, is_premium, server_hostname, use_background_tasks=True, background_tasks=background_tasks, premium_code=premium)
         container = info["container"]
         host_port = info["host_port"]
         url = info["url"]

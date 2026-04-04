@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--dev-whitelist', '-w', help='Comma-separated developer IDs to whitelist (disables allow-all)')
     parser.add_argument('--max-free-vms', type=int, help='Maximum concurrent free VMs (premium VMs do not count towards this limit)')
     parser.add_argument('--max-premium-vms', type=int, help='Maximum concurrent premium VMs (0 = unlimited)')
+    parser.add_argument('--max-premium-vms-per-code', type=int, help='Maximum VMs per premium code (default: 1)')
     parser.add_argument('--max-cpu-threads', type=int, help='Maximum CPU threads (cores) per VM instance')
     parser.add_argument('--max-ram-gb', type=int, help='Maximum RAM (GB) per VM instance')
     parser.add_argument('--non-interactive', '-n', action='store_true', help='Use defaults without prompting')
@@ -110,6 +111,11 @@ def main():
         if not non_interactive else int(existing_config.get('MAX_PREMIUM_VMS', '0'))
     )
 
+    max_premium_vms_per_code = args.max_premium_vms_per_code if args.max_premium_vms_per_code is not None else (
+        int(get_input(f"Enter Max VMs per Premium Code [{existing_config.get('MAX_PREMIUM_VMS_PER_CODE', '1')}]: ", existing_config.get('MAX_PREMIUM_VMS_PER_CODE', '1')))
+        if not non_interactive else int(existing_config.get('MAX_PREMIUM_VMS_PER_CODE', '1'))
+    )
+
     max_cpu_threads = args.max_cpu_threads if args.max_cpu_threads is not None else (
         int(get_input(f"Enter Max CPU Threads per VM [{existing_config.get('MAX_CPU_THREADS', '4')}]: ", existing_config.get('MAX_CPU_THREADS', '4')))
         if not non_interactive else int(existing_config.get('MAX_CPU_THREADS', '4'))
@@ -133,6 +139,7 @@ def main():
             f.write(f"PREMIUM_CODE={premium_code}\n")
         f.write(f"MAX_FREE_VMS={max_free_vms}\n")
         f.write(f"MAX_PREMIUM_VMS={max_premium_vms}\n")
+        f.write(f"MAX_PREMIUM_VMS_PER_CODE={max_premium_vms_per_code}\n")
         f.write(f"MAX_CPU_THREADS={max_cpu_threads}\n")
         f.write(f"MAX_RAM_GB={max_ram_gb}\n")
 
