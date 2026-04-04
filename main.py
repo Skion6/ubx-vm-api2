@@ -270,12 +270,12 @@ async def schedule_container_deletion(container_id: str, inactivity_seconds: int
 
             cpu_percent = await asyncio.to_thread(_get_cpu_percent)
 
-            # Threshold: 0.5% of a single core. 
-            # If system has 8 cores, 0.5% of 1 core is 0.0625% total system CPU.
-            # Using (delta / sys_delta) * num_cpus * 100 matches `docker stats`.
-            if cpu_percent >= 0.5:
+            # Threshold: 10% of total system CPU.
+            # VMs using less than this are considered idle and count toward inactivity timeout.
+            # VMs above this are considered active (resets idle timer).
+            IDLE_CPU_THRESHOLD = 10.0
+            if cpu_percent >= IDLE_CPU_THRESHOLD:
                 idle_since = time.time()
-                # print(f"Container {container_id} active: {cpu_percent:.2f}%") # noisy
             else:
                 idle_duration = time.time() - idle_since
                 if idle_duration >= inactivity_seconds:
