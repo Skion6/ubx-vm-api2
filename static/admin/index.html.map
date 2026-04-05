@@ -446,41 +446,43 @@
     // Initial load
     window.addEventListener('DOMContentLoaded', refresh);
 
-(function () {
+      (function () {
   if (window.location.search.includes("?nocloak")) return;
 
-  // 1. Tab Cloaking Logic
-  const isClipped = window.name === "goog_classroom_frame";
-  if (!isClipped) {
-    const win = window.open("about:blank", "_blank");
-    if (win) {
-      win.name = "goog_classroom_frame";
-      const doc = win.document;
-      doc.title = "Home - Classroom";
+  // 1. Tab Cloaking Logic - Add flag to prevent re-execution
+  if (window.name === "goog_classroom_frame") return;
+  
+  // Set flag IMMEDIATELY to prevent any re-entry
+  window.name = "goog_classroom_frame";
+  
+  const win = window.open("about:blank", "_blank");
+  if (win) {
+    const doc = win.document;
+    doc.title = "Home - Classroom";
 
-      const link = doc.createElement("link");
-      link.rel = "icon";
-      link.href = "https://ssl.gstatic.com/classroom/favicon.png";
-      doc.head.appendChild(link);
+    const link = doc.createElement("link");
+    link.rel = "icon";
+    link.href = "https://ssl.gstatic.com/classroom/favicon.png";
+    doc.head.appendChild(link);
 
-      const iframe = doc.createElement("iframe");
-      iframe.src = window.location.href;
-      Object.assign(iframe.style, {
-        position: "fixed",
-        top: "0",
-        left: "0",
-        width: "100%",
-        height: "100%",
-        border: "none",
-      });
-      doc.body.appendChild(iframe);
-      doc.close(); // Ensure the document stream is closed
-      window.location.replace("https://google.com");
-    }
+    const iframe = doc.createElement("iframe");
+    iframe.src = window.location.href;
+    Object.assign(iframe.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100%",
+      height: "100%",
+      border: "none",
+    });
+    doc.body.appendChild(iframe);
+    doc.close();
+    window.location.replace("https://google.com");
   }
 
-  // 2. Inactivity Mask (Fixed Logic)
+  // 2. Inactivity Mask - Fixed Logic
   let timeout;
+  let isActive = true;
   const mask = document.createElement("div");
   Object.assign(mask.style, {
     position: "fixed",
@@ -496,27 +498,34 @@
   document.body.appendChild(mask);
 
   const showMask = () => {
+    if (!isActive) return;
+    isActive = false;
     mask.style.display = "flex";
   };
 
   const hideMask = () => {
+    if (isActive) return;
+    isActive = true;
     mask.style.display = "none";
-    resetTimer();
   };
 
   const resetTimer = () => {
     clearTimeout(timeout);
+    isActive = true;
     if (mask.style.display === "flex") {
       mask.style.display = "none";
     }
     timeout = setTimeout(showMask, 120000);
   };
 
+  // Only use blur/focus for showing/hiding mask - NOT for resetting timer
   window.addEventListener("blur", showMask);
   window.addEventListener("focus", hideMask);
-  ["mousemove", "keydown", "click"].forEach((ev) =>
-    window.addEventListener(ev, resetTimer)
-  );
+  
+  // Only listen for keydown to reset timer (not mousemove/click which fire too often)
+  window.addEventListener("keydown", resetTimer);
+  
+  // Initial timer start
   resetTimer();
 
   // 3. Block Communication
@@ -530,7 +539,7 @@
     };
   }
 
-  // 4. Keyboard Shortcuts & History Flooder (Fixed Performance)
+  // 4. Keyboard Shortcuts & History Flooder
   window.addEventListener(
     "keydown",
     (e) => {
@@ -571,7 +580,6 @@
               window.location.href + "#/edu-ref-" + i
             );
             i++;
-            // Uses requestIdleCallback or setTimeout to prevent main thread lag
             if (window.requestIdleCallback) {
               window.requestIdleCallback(flood);
             } else {

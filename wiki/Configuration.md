@@ -47,7 +47,7 @@ start /b python setup.py -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2" --max-fre
 ### Capacity & Access Control
 - **MAX_GLOBAL_VMS**: The global hard cap for concurrently running VMs across all developers (Default: 10). If reached, new requests will be queued.
 - **MAX_FREE_VMS**: Maximum concurrent free VMs. Premium VMs are excluded from this count (Default: 10). If reached, free VM requests will be queued.
-- **MAX_PREmium_VMS**: Maximum concurrent premium VMs. Set to 0 for unlimited (Default: 0). If reached, premium VM requests will be queued.
+- **MAX_PREMIUM_VMS**: Maximum concurrent premium VMs. Set to 0 for unlimited (Default: 0). If reached, premium VM requests will be queued.
 - **MAX_CPU_THREADS**: Maximum CPU threads (cores) allocated per VM instance (Default: 4).
 - **MAX_RAM_GB**: Maximum RAM (GB) allocated per VM instance (Default: 8).
 - **ALLOW_ALL_DEVELOPERS**: When set to `1` (default) any `developer_id` may request VMs. Set to `0` to restrict creation to a whitelist.

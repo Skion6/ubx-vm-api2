@@ -58,6 +58,12 @@ setup.bat -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
 - `-i, --max-inactivity`: Max Inactivity Time (minutes)
 - `-s, --max-session`: Max Session Lifetime (minutes)
 - `-p, --premium-code`: Premium Code(s), comma-separated
+- `-g, --max-global-vms`: Global max concurrent VMs (hard limit)
+- `-w, --dev-whitelist`: Comma-separated developer IDs to whitelist
+- `--max-free-vms`: Maximum concurrent free VMs
+- `--max-premium-vms`: Maximum concurrent premium VMs (0 = unlimited)
+- `--max-cpu-threads`: Maximum CPU threads (cores) per VM instance
+- `--max-ram-gb`: Maximum RAM (GB) per VM instance
 - `-n, --non-interactive`: Use defaults without prompting
 
 ### 3. Configure API
@@ -155,7 +161,42 @@ sudo systemctl start xcloud
 
 ### TLS/HTTPS Setup
 
-Use caddy with a caddyfile
+The API itself runs over HTTP. To enable HTTPS, use Caddy as a reverse proxy.
+
+**1. Install Caddy:**
+
+```bash
+# Linux
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo tee /etc/apt/trusted.gpg.d/caddy.asc
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/deb.debian.txt' | sudo tee /etc/apt/sources.list.d/caddy.list
+sudo apt update
+sudo apt install caddy
+
+# macOS
+brew install caddy
+
+# Windows (PowerShell)
+scoop install caddy
+```
+
+**2. Create a Caddyfile:**
+
+Create a `Caddyfile` in your project directory:
+
+./Caddyfile
+
+**3. Run Caddy:**
+
+```bash
+# Development (auto HTTPS)
+caddy run
+
+# Production
+caddy run --environment
+```
+
+Caddy will automatically obtain and renew TLS certificates from Let's Encrypt.
 
 ## Features
 
