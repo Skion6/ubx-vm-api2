@@ -19,3 +19,20 @@ Xcloud allows developers to spin up full Linux desktops in the browser with a si
 - Dynamic port mapping.
 - Inactivity-based auto-deletion.
 - Resource capping (CPU/RAM).
+
+## Quick Start
+
+```bash
+# Clone and setup
+git clone https://gitlab.com/lorem-group-us/ubx-vm-api.git
+cd ubx-vm-api
+
+# Run setup (Linux/Mac)
+./setup.sh
+
+# Or on Windows
+setup.bat
+
+# Create a VM
+curl "http://localhost:8000/api/create?developer_id=myapp"
+```

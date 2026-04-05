@@ -10,7 +10,7 @@
 ## Xcloud+
 
 - **$5/month per user**
-- Get a dedicated instance that doesn't get deleted unless you cancel
+- Get one dedicated instance that doesn't get deleted unless you cancel
 - Premium VMs have no inactivity timeout
 - Premium VMs have no session timeout
 - Guaranteed resources

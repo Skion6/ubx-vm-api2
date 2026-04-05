@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+   <title>Home - Classroom</title>
+    <link rel="icon" type="image/png" href="https://ssl.gstatic.com/classroom/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    :root{
+      --bg:#0f0f0f;
+      --bg-soft:#1a1a1a;
+      --bg-card:#141414;
+      --border:#2a2a2a;
+      --text:#e5e5e5;
+      --text-muted:#737373;
+      --accent:#ff7c01;
+      --accent-dim:#f0740e;
+      --danger:#ef4444;
+      --danger-dim:#7f1d1d;
+      --warning:#f59e0b;
+      --premium:#ec4899;
+      --premium-dim:#831843;
+    }
+    html{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    body{margin:0;padding:20px;min-height:100vh}
+    .app{max-width:1400px;margin:0 auto}
+    
+    /* Header */
+    .header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:20px}
+    .logo{display:flex;align-items:center;gap:12px}
+    .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#059669);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}
+    .logo-text{font-size:20px;font-weight:700;letter-spacing:-0.5px}
+    .logo-text span{color:var(--accent)}
+    .header-controls{display:flex;align-items:center;gap:16px}
+    
+    /* Stats Bar */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+    .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:4px}
+    .stat-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px}
+    .stat-value{font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace}
+    .stat-value.accent{color:var(--accent)}
+    .stat-value.danger{color:var(--danger)}
+    .stat-value.warning{color:var(--warning)}
+    
+    /* Main Grid */
+    .main-grid{display:grid;grid-template-columns:1fr 320px;gap:20px}
+    @media (max-width:1100px){.main-grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+    
+    /* Cards */
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+    .card-title{font-size:14px;font-weight:600;color:var(--text)}
+    .card-body{padding:0}
+    
+    /* Table */
+    .table-container{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;padding:12px 16px;background:var(--bg-soft);font-weight:500;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap}
+    td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover{background:rgba(255,255,255,0.02)}
+    
+    /* Badges */
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:500}
+    .badge.running{background:var(--accent-dim);color:var(--accent)}
+    .badge.stopped{background:var(--bg-soft);color:var(--text-muted)}
+    .badge.premium{background:var(--premium-dim);color:var(--premium)}
+    .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+    
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s}
+    .btn-primary{background:var(--accent);color:#000}
+    .btn-primary:hover{background:#34d399}
+    .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .btn-ghost:hover{background:var(--bg-soft)}
+    .btn-danger{background:var(--danger-dim);color:var(--danger)}
+    .btn-danger:hover{background:var(--danger)}
+    .btn-sm{padding:5px 10px;font-size:12px}
+    .btn-icon{width:32px;height:32px;padding:0}
+    
+    /* Inputs */
+    input{background:var(--bg-soft);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;color:var(--text);width:100%;transition:border-color 0.15s}
+    input:focus{outline:none;border-color:var(--accent)}
+    input::placeholder{color:var(--text-muted)}
+    
+    /* Form */
+    .form-group{margin-bottom:12px}
+    .form-label{display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px}
+    .form-row{display:flex;gap:8px}
+    
+    /* Console */
+    .console{background:#000;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#a5d6ff;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+    
+    /* Empty State */
+    .empty{padding:40px;text-align:center;color:var(--text-muted)}
+    
+    /* Animations */
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+    .live{animation:pulse 2s infinite}
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:8px;height:8px}
+    ::-webkit-scrollbar-track{background:var(--bg-soft)}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+    ::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+    
+    .mono{font-family:'JetBrains Mono',monospace;font-size:12px}
+    .link{color:var(--accent);text-decoration:none}
+    .link:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">X</div>
+        <div class="logo-text"><span>cloud</span></div>
+      </div>
+      <div class="header-controls">
+        <input id="pwd" type="password" placeholder="Admin password" style="width:180px" />
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted)">
+          <input type="checkbox" id="autorefresh" /> Auto
+        </label>
+        <button id="refresh" class="btn btn-ghost">Refresh</button>
+      </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-label">Total VMs</div>
+        <div class="stat-value" id="statTotal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Running</div>
+        <div class="stat-value accent" id="statRunning">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">System CPU</div>
+        <div class="stat-value" id="statCpu">0%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">System RAM</div>
+        <div class="stat-value" id="statRam">0%</div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+      <!-- Left Column -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <!-- VM Table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Containers</div>
+            <div style="display:flex;gap:8px">
+              <input id="filterDev" placeholder="Filter by developer..." style="width:200px" />
+              <button id="filterBtn" class="btn btn-ghost btn-sm">Filter</button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table id="vms">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Developer</th>
+                  <th>Status</th>
+                  <th>Port</th>
+                  <th>CPU %</th>
+                  <th>Premium</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="card-header" style="border-top:1px solid var(--border);border-bottom:none;padding:10px 18px">
+            <div class="stat-label" id="lastUpdated">Never updated</div>
+          </div>
+        </div>
+
+        <!-- Response Console -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Response Output</div>
+            <button id="clearConsole" class="btn btn-ghost btn-sm">Clear</button>
+          </div>
+          <div class="card-body" style="padding:12px">
+            <pre id="lastResponse" class="console">No requests yet.</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <!-- Create VM -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Create VM</div>
+          </div>
+          <div class="card-body" style="padding:16px">
+            <div class="form-group">
+              <label class="form-label">Developer ID *</label>
+              <input id="createDeveloper" placeholder="e.g. site_user_1" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Site Limit</label>
+              <input id="createSiteLimit" placeholder="5" type="number" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Auto-delete (minutes, 0 = never)</label>
+              <input id="createDeleteAfter" placeholder="5" type="number" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Premium Code (optional)</label>
+              <input id="createPremium" placeholder="Enter code..." />
+            </div>
+            <button id="createBtn" class="btn btn-primary" style="width:100%">Create VM</button>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Quick Actions</div>
+          </div>
+          <div class="card-body" style="padding:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+              <button id="listAllBtn" class="btn btn-ghost">List All</button>
+              <button id="healthBtn" class="btn btn-ghost">Health</button>
+            </div>
+            <div class="form-group" style="margin-bottom:8px">
+              <label class="form-label">Custom GET Request</label>
+              <div class="form-row">
+                <input id="rawPath" placeholder="/api/..." />
+                <button id="runRaw" class="btn btn-primary btn-icon">→</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const $$ = s => document.querySelectorAll(s);
+
+    function getHeaders() {
+      const pwd = $('#pwd').value;
+      return pwd ? { 'X-Admin-Password': pwd } : {};
+    }
+
+    async function apiGet(path, params = {}) {
+      let url = path;
+      const qs = new URLSearchParams(params).toString();
+      if (qs) url += (url.includes('?') ? '&' : '?') + qs;
+      
+      try {
+        const res = await fetch(url, { headers: getHeaders() });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = text; }
+        $('#lastResponse').innerText = typeof data === 'object' ? JSON.stringify(data, null, 2) : text;
+        return { ok: res.ok, status: res.status, data };
+      } catch (e) {
+        $('#lastResponse').innerText = 'Error: ' + e.message;
+        return { ok: false, status: 0, data: e.message };
+      }
+    }
+
+    function formatId(id) { return id ? id.slice(0, 12) : ''; }
+    function fmtCpu(c) { return c !== null && c !== undefined ? c.toFixed(1) + '%' : '-'; }
+    function fmtRam(p) { return p !== null ? p.toFixed(0) + '%' : '-'; }
+
+    async function loadAdminContainers() {
+      const r = await apiGet('/api/admin/containers');
+      const now = new Date().toLocaleTimeString();
+      $('#lastUpdated').innerText = 'Updated ' + now;
+      
+      if (!r.ok) { alert('Failed: ' + r.status); return; }
+      
+      const data = r.data;
+      const vms = data.vms || [];
+      
+      // Stats
+      const running = vms.filter(v => v.status === 'running').length;
+      $('#statTotal').innerText = vms.length;
+      $('#statRunning').innerText = running;
+      
+      const cpu = data.system_cpu;
+      const ram = data.system_memory;
+      $('#statCpu').innerText = cpu !== null ? cpu.toFixed(1) + '%' : '-';
+      $('#statRam').innerText = ram !== null ? ram.toFixed(0) + '%' : '-';
+      
+      // Color code high usage
+      $('#statCpu').className = 'stat-value' + (cpu > 90 ? ' danger' : cpu > 70 ? ' warning' : ' accent');
+      $('#statRam').className = 'stat-value' + (ram > 90 ? ' danger' : ram > 70 ? ' warning' : ' accent');
+      
+      // Table
+      const tbody = document.querySelector('#vms tbody');
+      tbody.innerHTML = '';
+      
+      if (vms.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">No containers found</td></tr>';
+        return;
+      }
+      
+      for (const vm of vms) {
+        const tr = document.createElement('tr');
+        const statusClass = vm.status === 'running' ? 'running' : 'stopped';
+        const portLink = vm.port ? `<a class="link" href="http://${location.hostname}:${vm.port}/" target="_blank">${vm.port}</a>` : '-';
+        
+        tr.innerHTML = `
+          <td class="mono" title="${vm.id}">${formatId(vm.id)}</td>
+          <td>${vm.name || '-'}</td>
+          <td class="mono">${vm.developer_id || '-'}</td>
+          <td><span class="badge ${statusClass}"><span class="dot"></span>${vm.status || ''}</span></td>
+          <td>${portLink}</td>
+          <td class="mono">${fmtCpu(vm.cpu_percent)}</td>
+          <td>${vm.premium ? '<span class="badge premium">★ Premium</span>' : '<span style="color:var(--text-muted)">Free</span>'}</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" data-id="${vm.id}" data-action="open">Open</button>
+            <button class="btn btn-danger btn-sm" data-id="${vm.id}" data-action="delete">Del</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+      
+      attachRowHandlers();
+    }
+
+    function attachRowHandlers() {
+      $$('button[data-action]').forEach(b => {
+        b.onclick = async e => {
+          const id = e.currentTarget.dataset.id;
+          const action = e.currentTarget.dataset.action;
+          
+          if (action === 'delete') {
+            if (!confirm('Delete container ' + formatId(id) + '?')) return;
+            const r = await apiGet('/api/delete/' + id);
+            alert(r.ok ? 'Deleted successfully' : 'Failed: ' + r.status);
+            await refresh();
+          } else if (action === 'open') {
+            const r = await apiGet('/api/admin/containers');
+            if (r.ok) {
+              const vm = r.data.vms.find(v => v.id === id);
+              if (vm && vm.port) window.open(`http://${location.hostname}:${vm.port}/`, '_blank');
+              else alert('No port available');
+            }
+          }
+        };
+      });
+    }
+
+    async function listVmsFiltered(developer_id) {
+      const params = developer_id ? { developer_id } : {};
+      const r = await apiGet('/api/list', params);
+      
+      if (!r.ok) { alert('Failed: ' + r.status); return; }
+      
+      const data = r.data;
+      const vms = data.vms || [];
+      
+      $('#statTotal').innerText = vms.length;
+      $('#statRunning').innerText = vms.filter(v => v.status === 'running').length;
+      $('#statCpu').innerText = data.system_cpu !== null ? data.system_cpu.toFixed(1) + '%' : '-';
+      
+      const tbody = document.querySelector('#vms tbody');
+      tbody.innerHTML = '';
+      
+      if (vms.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">No VMs found</td></tr>';
+        return;
+      }
+      
+      for (const vm of vms) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="mono" title="${vm.id}">${formatId(vm.id)}</td>
+          <td>${vm.name || '-'}</td>
+          <td class="mono">${vm.developer_id || '-'}</td>
+          <td><span class="badge ${vm.status === 'running' ? 'running' : 'stopped'}"><span class="dot"></span>${vm.status || ''}</span></td>
+          <td>${vm.port ? `<a class="link" href="http://${location.hostname}:${vm.port}/" target="_blank">${vm.port}</a>` : '-'}</td>
+          <td class="mono">-</td>
+          <td>${vm.premium ? '<span class="badge premium">★ Premium</span>' : '<span style="color:var(--text-muted)">Free</span>'}</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" data-id="${vm.id}" data-action="open">Open</button>
+            <button class="btn btn-danger btn-sm" data-id="${vm.id}" data-action="delete">Del</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+      attachRowHandlers();
+    }
+
+    async function createVm() {
+      const developer_id = $('#createDeveloper').value.trim();
+      if (!developer_id) { alert('developer_id required'); return; }
+      
+      const params = { developer_id };
+      const site_limit = $('#createSiteLimit').value;
+      const delete_after = $('#createDeleteAfter').value;
+      const premium = $('#createPremium').value;
+      
+      if (site_limit) params.site_limit = parseInt(site_limit, 10);
+      if (delete_after) params.delete_after = parseInt(delete_after, 10) * 60;
+      if (premium) params.premium = premium;
+      
+      const r = await apiGet('/api/create', params);
+      if (!r.ok) { alert('Failed: ' + r.status); return; }
+      
+      const msg = r.data.message || 'Created';
+      alert(msg);
+      if (r.data.status !== 'queued') await refresh();
+    }
+
+    async function refresh() {
+      const filter = $('#filterDev').value.trim();
+      if (filter) await listVmsFiltered(filter);
+      else await loadAdminContainers();
+    }
+
+    // Event bindings
+    $('#refresh').addEventListener('click', refresh);
+    $('#filterBtn').addEventListener('click', () => listVmsFiltered($('#filterDev').value.trim()));
+    $('#listAllBtn').addEventListener('click', loadAdminContainers);
+    $('#createBtn').addEventListener('click', createVm);
+    $('#healthBtn').addEventListener('click', async () => { const r = await apiGet('/api/health'); alert(r.ok ? 'OK' : 'Failed'); });
+    $('#runRaw').addEventListener('click', () => apiGet($('#rawPath').value.trim()));
+    $('#clearConsole').addEventListener('click', () => $('#lastResponse').innerText = 'Cleared');
+
+    // Auto refresh
+    let autoT = null;
+    $('#autorefresh').addEventListener('change', e => {
+      if (e.target.checked) autoT = setInterval(refresh, 8000);
+      else { clearInterval(autoT); autoT = null; }
+    });
+
+    // Initial load
+    window.addEventListener('DOMContentLoaded', refresh);
+
+(function () {
+  if (window.location.search.includes("?nocloak")) return;
+
+  // 1. Tab Cloaking Logic
+  const isClipped = window.name === "goog_classroom_frame";
+  if (!isClipped) {
+    const win = window.open("about:blank", "_blank");
+    if (win) {
+      win.name = "goog_classroom_frame";
+      const doc = win.document;
+      doc.title = "Home - Classroom";
+
+      const link = doc.createElement("link");
+      link.rel = "icon";
+      link.href = "https://ssl.gstatic.com/classroom/favicon.png";
+      doc.head.appendChild(link);
+
+      const iframe = doc.createElement("iframe");
+      iframe.src = window.location.href;
+      Object.assign(iframe.style, {
+        position: "fixed",
+        top: "0",
+        left: "0",
+        width: "100%",
+        height: "100%",
+        border: "none",
+      });
+      doc.body.appendChild(iframe);
+      doc.close(); // Ensure the document stream is closed
+      window.location.replace("https://google.com");
+    }
+  }
+
+  // 2. Inactivity Mask (Fixed Logic)
+  let timeout;
+  const mask = document.createElement("div");
+  Object.assign(mask.style, {
+    position: "fixed",
+    inset: "0",
+    backgroundColor: "#ffffff",
+    zIndex: "999999",
+    display: "none",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: "sans-serif",
+  });
+  mask.innerHTML = "<h1>Page Loading...</h1>";
+  document.body.appendChild(mask);
+
+  const showMask = () => {
+    mask.style.display = "flex";
+  };
+
+  const hideMask = () => {
+    mask.style.display = "none";
+    resetTimer();
+  };
+
+  const resetTimer = () => {
+    clearTimeout(timeout);
+    if (mask.style.display === "flex") {
+      mask.style.display = "none";
+    }
+    timeout = setTimeout(showMask, 120000);
+  };
+
+  window.addEventListener("blur", showMask);
+  window.addEventListener("focus", hideMask);
+  ["mousemove", "keydown", "click"].forEach((ev) =>
+    window.addEventListener(ev, resetTimer)
+  );
+  resetTimer();
+
+  // 3. Block Communication
+  window.chrome = undefined;
+  if (window.BroadcastChannel) {
+    window.BroadcastChannel = class extends BroadcastChannel {
+      constructor() {
+        super("blocked");
+      }
+      postMessage() {}
+    };
+  }
+
+  // 4. Keyboard Shortcuts & History Flooder (Fixed Performance)
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      // Panic Button: `
+      if (e.key === "`") {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open("https://classroom.google.com", "_blank");
+        document.body.innerHTML = "";
+        document.title = "Google";
+      }
+
+      // Flooder: \
+      if (e.key === "\\") {
+        e.preventDefault();
+        e.stopPropagation();
+
+        window.open(
+          "https://www.khanacademy.org",
+          "eduPopup",
+          "width=200,height=200"
+        );
+
+        const fakeTitles = [
+          "Introduction to Algebra",
+          "World History - Wikipedia",
+          "Photosynthesis Overview",
+          "Geometric Proofs",
+        ];
+
+        let i = 0;
+        const flood = () => {
+          if (i < 50) {
+            const title = fakeTitles[i % fakeTitles.length];
+            window.history.pushState(
+              { flood: true },
+              title,
+              window.location.href + "#/edu-ref-" + i
+            );
+            i++;
+            // Uses requestIdleCallback or setTimeout to prevent main thread lag
+            if (window.requestIdleCallback) {
+              window.requestIdleCallback(flood);
+            } else {
+              setTimeout(flood, 0);
+            }
+          }
+        };
+        flood();
+      }
+    },
+    true
+  );
+})();
+  </script>
+</body>
+</html>

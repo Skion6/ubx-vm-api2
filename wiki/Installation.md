@@ -22,17 +22,17 @@ cd ubx-vm-api
 **Interactive Mode (default):**
 
 **Windows:**
-Double-click `/setup.bat` or run:
+Double-click `setup.bat` or run:
 
 ```cmd
-tools\setup.bat
+setup.bat
 ```
 
 **Linux/Mac:**
 
 ```bash
 chmod +x /setup.sh
-.//setup.sh
+./setup.sh
 ```
 
 **Non-interactive Mode (for nohup/automation):**
@@ -42,13 +42,13 @@ All command-line arguments are passed through to setup.py:
 ```bash
 
 # Using defaults
-.//setup.sh --non-interactive
+./setup.sh --non-interactive
 
 # With specific values
-.//setup.sh -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
+./setup.sh -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
 
 # Windows
-tools\setup.bat -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
+setup.bat -a mypass -m 50 -i 10 -s 120 -p "CODE1,CODE2"
 ```
 
 **Command-line options:**
@@ -155,15 +155,9 @@ sudo systemctl start xcloud
 
 ### TLS/HTTPS Setup
 
-Set environment variables in your `.env` file:
+Use caddy with a caddyfile
 
-```
-SSL_CERTFILE=/path/to/cert.pem
-SSL_KEYFILE=/path/to/key.pem
-# Optional: SSL_KEYFILE_PASSWORD=your_password
-```
-
-## New Features
+## Features
 
 - **Queue System**: When global VM capacity is reached, requests are queued automatically
 - **Premium Codes**: Create VMs that never auto-delete

@@ -30,16 +30,16 @@ To host this API, your server must have:
 Run the built-in setup script from your terminal:
 
 ```bash
-chmod +x /setup.sh
-.//setup.sh
+chmod +x setup.sh
+./setup.sh
 ```
 
 ### Windows
 
-Double click the `/setup.bat` file, or run it in your terminal:
+Double click the `setup.bat` file, or run it in your terminal:
 
 ```cmd
-tools\setup.bat
+setup.bat
 ```
 
 The script will automatically build the `xcloud` Docker template, install Python dependencies, and launch the API server on **Port 8000**.

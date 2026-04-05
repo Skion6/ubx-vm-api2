@@ -398,7 +398,7 @@ async def _spawn_and_wait(developer_id: str, effective_delete_after: int, is_pre
                 environment={
                     "PUID": "1000",
                     "PGID": "1000",
-                    "TZ": "Etc/UTC",
+                    "TZ": "America/Chicago",
                     "SUBFOLDER": "/",
                     "TITLE": "Home - Classroom"
                 },
