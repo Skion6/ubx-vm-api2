@@ -66,4 +66,3 @@ RUN \
 
 # ports and volumes
 EXPOSE 3000
-VOLUME /config
