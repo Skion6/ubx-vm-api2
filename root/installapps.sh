@@ -3,10 +3,6 @@ set -e
 
 json_file="/options.json"
 
-if jq ".defaultapps | contains([0])" "$json_file" | grep -q true; then
-    chmod +x /installable-apps/wine.sh
-    /installable-apps/wine.sh
-fi
 if jq ".defaultapps | contains([1])" "$json_file" | grep -q true; then
     chmod +x /installable-apps/helium.sh
     /installable-apps/helium.sh
