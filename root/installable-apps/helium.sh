@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-echo "**** install helium browser ****"
-# repurposed as wine prt 2
+echo "**** install mousepad text editor ****"
 apt-get update -y
-apt-get install -y winehq-stable
+apt-get install -y mousepad
